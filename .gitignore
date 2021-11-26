@@ -1,0 +1,4 @@
+
+*.pyc
+
+network/modules/__pycache__/
