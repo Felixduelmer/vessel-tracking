@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from convgru import ConvGRU
+import attention_block
+from network.modules.utils import MultiAttentionBlock 
 
 '''Define the number of features you want to normalize to'''
 def BatchNormAndPReLU(features):
@@ -56,29 +58,47 @@ class DoubleConvolutionAndNormalization(nn.Module):
 class VesNet(nn.Module):
 
 
-    def __init__(self, dtype, in_channels=2, out_channels=1, init_features=4):
+    def __init__(self, dtype, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation', 
+                attention_dsample=(2,2,2)):
         super(VesNet, self).__init__()
+        self.in_channels = in_channels
+        self.feature_scale = feature_scale
+        self.nonlocal_mode = nonlocal_mode
+        self.attention_dsample = attention_dsample
 
-        features = init_features
-        self.imagePrep = ConvBatchNormPreLU(in_channels, features)
-        self.encoder1 = DoubleConvolutionAndNormalization(features)
-        self.pool1 = Conv2x2Stride2x2Prelu(features, features*2)
 
-        self.encoder2 = DoubleConvolutionAndNormalization(features*2)
-        self.pool2 = Conv2x2Stride2x2Prelu(features*2, features*4)
+        filters = [64, 128, 256, 512]
+        filters = [int(x / self.feature_scale) for x in filters]
 
-        self.encoder3 = DoubleConvolutionAndNormalization(features*4)
-        self.pool3 = Conv2x2Stride2x2Prelu(features*4, features*8)
+        self.imagePrep = ConvBatchNormPreLU(self.in_channels, filters[0])
+        self.encoder1 = DoubleConvolutionAndNormalization(filters[0])
+        self.pool1 = Conv2x2Stride2x2Prelu(filters[0], filters[1])
 
-        self.encoder4 = DoubleConvolutionAndNormalization(features*8)
+        self.encoder2 = DoubleConvolutionAndNormalization(filters[1])
+        self.pool2 = Conv2x2Stride2x2Prelu(filters[1], filters[2])
 
-        self.convGru4 = ConvGru(dimensions=features*8)
+        self.encoder3 = DoubleConvolutionAndNormalization(filters[2])
+        self.pool3 = Conv2x2Stride2x2Prelu(filters[2], filters[3])
 
-        self.convGru3 = ConvGru(dimensions=features*4)
+        self.encoder4 = DoubleConvolutionAndNormalization(filters[3])
 
-        self.convGru2 = ConvGru(dimensions=features*2)
 
-        self.convGru1 = ConvGru(dimensions=features)
+        # skip connections with Conv GRU
+        self.convGru4 = ConvGru(dimensions=filters[3])
+        self.convGru3 = ConvGru(dimensions=filters[2])
+        self.convGru2 = ConvGru(dimensions=filters[1])
+        self.convGru1 = ConvGru(dimensions=filters[0])
+
+        # attention blocks
+        self.attentionblock4 = MultiAttentionBlock(in_size=filters[0], gate_size=filters[1], inter_size=filters[0],
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+        self.attentionblock2 = MultiAttentionBlock(in_size=filters[1], gate_size=filters[2], inter_size=filters[1],
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+        self.attentionblock3 = MultiAttentionBlock(in_size=filters[2], gate_size=filters[3], inter_size=filters[2],
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+
+
+
         # self.bottleneck = Convolution2D(8*features, 16*features)
 
         # self.upconv4 = nn.ConvTranspose2d(
@@ -122,9 +142,15 @@ class VesNet(nn.Module):
         resConvGru2 = self.convGru2(resEncoder2)
         resConvGru1 = self.convGru1(resEncoder1)
 
-
-        # decoding + concat path
-
+        # Attention Mechanism
+        # Upscaling Part (Decoder)
+        g_conv4, att4 = self.attentionblock4(conv4, gating)
+        up4 = self.up_concat4(g_conv4, center)
+        g_conv3, att3 = self.attentionblock3(conv3, up4)
+        up3 = self.up_concat3(g_conv3, up4)
+        g_conv2, att2 = self.attentionblock2(conv2, up3)
+        up2 = self.up_concat2(g_conv2, up3)
+        up1 = self.up_concat1(conv1, up2)
 
 
         # bottleneck = self.bottleneck(self.pool4(enc4))
