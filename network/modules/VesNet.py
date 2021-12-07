@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import os
+from convgru import ConvGRU
 
 '''Define the number of features you want to normalize to'''
 def BatchNormAndPReLU(features):
@@ -25,6 +25,19 @@ def Conv2x2Stride2x2Prelu(in_channels, features):
         nn.PReLU()
     )
 
+'''
+For simplicity let's start with same amount of input dimensions as hidden dimensions
+'''
+def ConvGru(dimensions):
+    return ConvGRU(
+            input_dim=dimensions, 
+            hidden_dim=dimensions,
+            kernel_size=(3, 3),
+            num_layers=1,
+            dtype=dtype, 
+            )
+
+
 
 class DoubleConvolutionAndNormalization(nn.Module):
 
@@ -40,11 +53,10 @@ class DoubleConvolutionAndNormalization(nn.Module):
         return self.encoder_3(torch.add(x, x2))
 
 
-
 class VesNet(nn.Module):
 
 
-    def __init__(self, in_channels=2, out_channels=1, init_features=4):
+    def __init__(self, dtype, in_channels=2, out_channels=1, init_features=4):
         super(VesNet, self).__init__()
 
         features = init_features
@@ -60,6 +72,13 @@ class VesNet(nn.Module):
 
         self.encoder4 = DoubleConvolutionAndNormalization(features*8)
 
+        self.convGru4 = ConvGru(dimensions=features*8)
+
+        self.convGru3 = ConvGru(dimensions=features*4)
+
+        self.convGru2 = ConvGru(dimensions=features*2)
+
+        self.convGru1 = ConvGru(dimensions=features)
         # self.bottleneck = Convolution2D(8*features, 16*features)
 
         # self.upconv4 = nn.ConvTranspose2d(
@@ -83,6 +102,7 @@ class VesNet(nn.Module):
 
     def forward(self, input):
         
+        #encoding path
         resImagePrep = self.imagePrep(input)
 
         resEncoder1 = self.encoder1(resImagePrep)
@@ -96,11 +116,16 @@ class VesNet(nn.Module):
 
         resEncoder4 = self.encoder4(resPool3)
 
-        print(resEncoder4.size())
+        #intermediate Steps
+        resConvGru4 = self.convGru4(resEncoder4)
+        resConvGru3 = self.convGru3(resEncoder3)
+        resConvGru2 = self.convGru2(resEncoder2)
+        resConvGru1 = self.convGru1(resEncoder1)
 
-        # enc3 = self.encoder3(self.pool2(enc2))
 
-        # enc4 = self.encoder4(self.pool3(enc3))
+        # decoding + concat path
+
+
 
         # bottleneck = self.bottleneck(self.pool4(enc4))
 
@@ -117,8 +142,6 @@ class VesNet(nn.Module):
         # dec1 = self.decoder1(dec1)
 
         # output = torch.sigmoid(self.conv_out(dec1))
-
-        # return output
 
 
 if __name__ == '__main__':
