@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 from convgru import ConvGRU
 import attention_block
-from network.modules.utils import MultiAttentionBlock 
+from network.modules.utils import MultiAttentionBlock
+from cbam import ChannelGate
 
 '''Define the number of features you want to normalize to'''
 def BatchNormAndPReLU(features):
@@ -39,15 +40,31 @@ def ConvGru(dimensions):
             dtype=dtype, 
             )
 
+class SpatialChannelAttentionModule(nn.Module):
+    def __init__(self, filters, attentionMode, attention_dsample):
+        super().__init__(SpatialChannelAttentionModule, self).__init__()
+        self.filters = filters
+        self.attentionMode = attentionMode
+        self.selfSpatialAttentionHigherResolutionSpace = ChannelGate(gate_channels = self.filters[0])
+        self.multiScaleSpatialAttention = MultiAttentionBlock(in_size=self.filters[0], gate_size=self.filters[1], inter_size=self.filters[0],
+                                                   nonlocal_mode=self.attentionMode, sub_sample_factor= attention_dsample)
+        self.selfSpatialAttentionLowerResolutionSpace = ChannelGate(gate_channels = self.filters[1])
+
+    def forward(self, input, gating_signal):
+        x_A = self.selfSpatialAttentionHigherResolutionSpace(input)
+        g_A = self.selfSpatialAttentionLowerResolutionSpace(gating_signal)
+        return self.multiScaleSpatialAttention(x_A, g_A)
+
 
 
 class DoubleConvolutionAndNormalization(nn.Module):
 
     def __init__(self, features):
         super(DoubleConvolutionAndNormalization, self).__init__()
-        self.encoder_1 = ConvBatchNormPreLU(features, features)
-        self.encoder_2 = nn.Conv2d(features, features, kernel_size=5, padding=2)
-        self.encoder_3 = BatchNormAndPReLU(features)
+        self.features = features
+        self.encoder_1 = ConvBatchNormPreLU(self.features, self.features)
+        self.encoder_2 = nn.Conv2d(self.features, self.features, kernel_size=5, padding=2)
+        self.encoder_3 = BatchNormAndPReLU(self.features)
 
     def forward(self, x):
         x1 = self.encoder_1(x)
@@ -86,16 +103,11 @@ class VesNet(nn.Module):
         # skip connections with Conv GRU
         self.convGru4 = ConvGru(dimensions=filters[3])
         self.convGru3 = ConvGru(dimensions=filters[2])
+        self.spatialChannelAttention3 = SpatialChannelAttentionModule(filters=filters[2:3])
         self.convGru2 = ConvGru(dimensions=filters[1])
+        self.spatialChannelAttention2 = SpatialChannelAttentionModule(filters=filters[1:2])
         self.convGru1 = ConvGru(dimensions=filters[0])
-
-        # attention blocks
-        self.attentionblock4 = MultiAttentionBlock(in_size=filters[0], gate_size=filters[1], inter_size=filters[0],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
-        self.attentionblock2 = MultiAttentionBlock(in_size=filters[1], gate_size=filters[2], inter_size=filters[1],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
-        self.attentionblock3 = MultiAttentionBlock(in_size=filters[2], gate_size=filters[3], inter_size=filters[2],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+        self.spatialChannelAttention1 = SpatialChannelAttentionModule(filters=filters[0:1])
 
 
 
@@ -137,10 +149,14 @@ class VesNet(nn.Module):
         resEncoder4 = self.encoder4(resPool3)
 
         #intermediate Steps
+        #temporal attention units
         resConvGru4 = self.convGru4(resEncoder4)
         resConvGru3 = self.convGru3(resEncoder3)
         resConvGru2 = self.convGru2(resEncoder2)
         resConvGru1 = self.convGru1(resEncoder1)
+
+        #spatial Attention units
+        resSpatialChAtt3 = self.spatialChannelAttention3(re)
 
         # Attention Mechanism
         # Upscaling Part (Decoder)
