@@ -10,7 +10,7 @@ from .networks import get_network
 from .layers.loss import *
 from .networks_other import get_scheduler, print_network, benchmark_fp_bp_time
 from .utils import classification_stats, get_optimizer, get_criterion
-from .networks.utils import HookBasedFeatureExtractor
+from .utils import HookBasedFeatureExtractor
 
 
 class FeedForwardClassifier(BaseModel):
@@ -35,13 +35,15 @@ class FeedForwardClassifier(BaseModel):
                                tensor_dim=opts.tensor_dim, feature_scale=opts.feature_scale,
                                attention_dsample=opts.attention_dsample,
                                aggregation_mode=opts.aggregation_mode)
-        if self.use_cuda: self.net = self.net.cuda()
+        if self.use_cuda:
+            self.net = self.net.cuda()
 
         # load the model if a path is specified or it is in inference mode
         if not self.isTrain or opts.continue_train:
             self.path_pre_trained_model = opts.path_pre_trained_model
             if self.path_pre_trained_model:
-                self.load_network_from_path(self.net, self.path_pre_trained_model, strict=False)
+                self.load_network_from_path(
+                    self.net, self.path_pre_trained_model, strict=False)
                 self.which_epoch = int(0)
             else:
                 self.which_epoch = opts.which_epoch
@@ -76,13 +78,15 @@ class FeedForwardClassifier(BaseModel):
             # If it's a 5D array and 2D model then (B x C x H x W x Z) -> (BZ x C x H x W)
             bs = _input.size()
             if (self.tensor_dim == '2D') and (len(bs) > 4):
-                _input = _input.permute(0,4,1,2,3).contiguous().view(bs[0]*bs[4], bs[1], bs[2], bs[3])
+                _input = _input.permute(0, 4, 1, 2, 3).contiguous().view(
+                    bs[0]*bs[4], bs[1], bs[2], bs[3])
 
             # Define that it's a cuda array
             if idx == 0:
                 self.input = _input.cuda() if self.use_cuda else _input
             elif idx == 1:
-                self.target = Variable(_input.cuda()) if self.use_cuda else Variable(_input)
+                self.target = Variable(
+                    _input.cuda()) if self.use_cuda else Variable(_input)
                 assert self.input.shape[0] == self.target.shape[0]
 
     def forward(self, split):
@@ -93,7 +97,6 @@ class FeedForwardClassifier(BaseModel):
             # Apply a softmax and return a segmentation map
             self.logits = self.net.apply_argmax_softmax(self.prediction)
             self.pred = self.logits.data.max(1)
-
 
     def backward(self):
         #print(self.net.apply_argmax_softmax(self.prediction), self.target)
@@ -138,12 +141,13 @@ class FeedForwardClassifier(BaseModel):
         (self.accuracy, self.f1_micro, self.precision_micro,
          self.recall_micro, self.f1_macro, self.precision_macro,
          self.recall_macro, self.confusion, self.class_accuracies,
-         self.f1s, self.precisions,self.recalls) = res
+         self.f1s, self.precisions, self.recalls) = res
 
         breakdown = dict(type='table',
-                         colnames=['|accuracy|',' precison|',' recall|',' f1_score|'],
+                         colnames=['|accuracy|', ' precison|',
+                                   ' recall|', ' f1_score|'],
                          rownames=self.labels,
-                         data=[self.class_accuracies, self.precisions,self.recalls, self.f1s])
+                         data=[self.class_accuracies, self.precisions, self.recalls, self.f1s])
 
         return OrderedDict([('accuracy', self.accuracy),
                             ('confusion', self.confusion),
@@ -164,9 +168,9 @@ class FeedForwardClassifier(BaseModel):
         return OrderedDict([('inp_S', inp_img)])
 
     def get_feature_maps(self, layer_name, upscale):
-        feature_extractor = HookBasedFeatureExtractor(self.net, layer_name, upscale)
+        feature_extractor = HookBasedFeatureExtractor(
+            self.net, layer_name, upscale)
         return feature_extractor.forward(Variable(self.input))
-
 
     def save(self, epoch_label):
         self.save_network(self.net, 'S', epoch_label, self.gpu_ids)
@@ -177,7 +181,8 @@ class FeedForwardClassifier(BaseModel):
     def load_network_from_path(self, network, network_filepath, strict):
         network_label = os.path.basename(network_filepath)
         epoch_label = network_label.split('_')[0]
-        print('Loading the model {0} - epoch {1}'.format(network_label, epoch_label))
+        print(
+            'Loading the model {0} - epoch {1}'.format(network_label, epoch_label))
         network.load_state_dict(torch.load(network_filepath), strict=strict)
 
     def update_state(self, epoch):
