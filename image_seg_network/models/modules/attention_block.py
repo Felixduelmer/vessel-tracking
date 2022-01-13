@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from image_seg_network.models.networks_other import init_weights
+from models.networks_other import init_weights
 
 
 class _GridAttentionBlockND(nn.Module):
@@ -103,7 +103,7 @@ class _GridAttentionBlockND(nn.Module):
         f = F.relu(theta_x + phi_g, inplace=True)
 
         #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
-        sigm_psi_f = F.sigmoid(self.psi(f))
+        sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
         sigm_psi_f = F.upsample(
@@ -130,7 +130,7 @@ class _GridAttentionBlockND(nn.Module):
         f = F.softplus(theta_x + phi_g)
 
         #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
-        sigm_psi_f = F.sigmoid(self.psi(f))
+        sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
         sigm_psi_f = F.upsample(
@@ -220,10 +220,12 @@ class _GridAttentionBlockND_TORR(nn.Module):
                 self.inter_channels = 1
 
         if dimension == 3:
+            print("3 Dimensions")
             conv_nd = nn.Conv3d
             bn = nn.BatchNorm3d
             self.upsample_mode = 'trilinear'
         elif dimension == 2:
+            print("2 Dimensions")
             conv_nd = nn.Conv2d
             bn = nn.BatchNorm2d
             self.upsample_mode = 'bilinear'
@@ -363,7 +365,7 @@ class _GridAttentionBlockND_TORR(nn.Module):
             sigm_psi_f = sigm_psi_f.view(batch_size, 1, *theta_x_size[2:])
 
         elif self.mode == 'concatenation_sigmoid':
-            sigm_psi_f = F.sigmoid(psi_f)
+            sigm_psi_f = torch.sigmoid(psi_f)
         else:
             raise NotImplementedError
 

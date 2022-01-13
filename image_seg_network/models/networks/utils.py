@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from image_seg_network.models.networks_other import init_weights
-from image_seg_network.models.modules.attention_block import GridAttentionBlock2D
+from models.networks_other import init_weights
+from models.modules.attention_block import GridAttentionBlock2D
 
 
 class HookBasedFeatureExtractor(nn.Module):
@@ -37,7 +37,8 @@ class HookBasedFeatureExtractor(nn.Module):
         print('Output Array Size: ', self.outputs_size)
 
     def rescale_output_array(self, newsize):
-        us = nn.Upsample(size=newsize[2:], mode='bilinear')
+        us = nn.Upsample(size=newsize[2:],
+                         mode='bilinear', align_corners=False)
         if isinstance(self.outputs, list):
             for index in range(len(self.outputs)):
                 self.outputs[index] = us(self.outputs[index]).data()

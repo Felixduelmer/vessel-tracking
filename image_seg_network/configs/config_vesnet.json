@@ -1,6 +1,6 @@
 {
     "training": {
-        "arch_type": "acdc_sax",
+        "arch_type": "us",
         "n_epochs": 1000,
         "save_epoch_freq": 10,
         "lr_policy": "step",
@@ -16,7 +16,7 @@
         "display_single_pane_ncols": 0
     },
     "data_path": {
-        "acdc_sax": "/vol/biomedic2/oo2113/dataset/ken_abdominal_ct/"
+        "us": "/vol/biomedic2/oo2113/dataset/ken_abdominal_ct/"
     },
     "augmentation": {
         "acdc_sax": {

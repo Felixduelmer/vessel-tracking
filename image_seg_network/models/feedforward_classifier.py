@@ -9,8 +9,8 @@ from .base_model import BaseModel
 from .networks import get_network
 from .layers.loss import *
 from .networks_other import get_scheduler, print_network, benchmark_fp_bp_time
-from .utils import classification_stats, get_optimizer, get_criterion
-from .utils import HookBasedFeatureExtractor
+from .networks.utils import classification_stats, get_optimizer, get_criterion
+from .networks.utils import HookBasedFeatureExtractor
 
 
 class FeedForwardClassifier(BaseModel):

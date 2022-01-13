@@ -1,4 +1,4 @@
-from .VesNet import *
+#from ...VesNet import *
 
 
 def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D',

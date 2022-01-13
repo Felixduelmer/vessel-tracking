@@ -1,9 +1,11 @@
+from collections import deque
 import torch
+from torch.functional import Tensor
 import torch.nn as nn
-from image_seg_network.models.modules.convgru import ConvGRU
-import image_seg_network.models.modules.attention_block as attention_block
-from image_seg_network.models.utils import MultiAttentionBlock
-from image_seg_network.models.modules.cbam import ChannelGate
+from models.modules.convgru import ConvGRU
+import models.modules.attention_block as attention_block
+from models.networks.utils import MultiAttentionBlock
+from models.modules.cbam import ChannelGate
 
 '''Define the number of flters you want to normalize to'''
 
@@ -50,6 +52,9 @@ def ConvGru(input_size, dimensions, dtype):
         kernel_size=(3, 3),
         num_layers=1,
         dtype=dtype,
+        batch_first=True,
+        bias=False,
+        return_all_layers=False,
     )
 
 
@@ -58,7 +63,7 @@ class SpatialChannelAttentionModule(nn.Module):
         super(SpatialChannelAttentionModule, self).__init__()
         self.filters = filters
         self.attentionMode = 'concatenation'
-        self.attention_dsample = (2, 2, 2)
+        self.attention_dsample = (2, 2)
         self.selfSpatialAttentionHigherResolutionSpace = ChannelGate(
             gate_channels=self.filters[0])
         self.multiScaleSpatialAttention = MultiAttentionBlock(in_size=self.filters[0], gate_size=self.filters[1], inter_size=self.filters[0],
@@ -69,7 +74,7 @@ class SpatialChannelAttentionModule(nn.Module):
     def forward(self, input, gating_signal):
         x_A = self.selfSpatialAttentionHigherResolutionSpace(input)
         g_A = self.selfSpatialAttentionLowerResolutionSpace(gating_signal)
-        return self.multiScaleSpatialAttention(x_A, g_A)
+        return self.multiScaleSpatialAttention(x_A, g_A)[0]
 
 
 class Encoder(nn.Module):
@@ -122,7 +127,7 @@ class ResizeUpConvolution(nn.Module):
         self.filters = filters
         self.resizeUp = nn.UpsamplingBilinear2d(scale_factor=2)
         self.conv = nn.Conv2d(
-            in_channels=self.filters[1], out_channels=self.filters[0], kernel_size=3, padding=1)
+            in_channels=self.filters[1], out_channels=self.filters[0], kernel_size=(3, 3), padding=1)
 
     def forward(self, x):
         x = self.resizeUp(x)
@@ -131,7 +136,7 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, dtype, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
+    def __init__(self, dtype, device, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
         self.in_channels = in_channels
@@ -139,6 +144,13 @@ class VesNet(nn.Module):
         self.nonlocal_mode = nonlocal_mode
         self.attention_dsample = attention_dsample
         self.dtype = dtype
+        self.device = device
+
+        self.convGruInputs = [
+            torch.zeros((5, 4, 320, 320,), device=self.device,),
+            torch.zeros((5, 8, 160, 160,), device=self.device,),
+            torch.zeros((5, 16, 80, 80,), device=self.device),
+            torch.zeros((5, 32, 40, 40,), device=self.device), ]
 
         input_size = [320, 160, 80, 40]
         filters = [64, 128, 256, 512]
@@ -157,18 +169,18 @@ class VesNet(nn.Module):
         self.encoder4 = Encoder(filters[3])
 
         # skip connections with Conv GRU
-        self.convGru4 = ConvGru(input_size=(
-            input_size[0], input_size[0]), dimensions=filters[3], dtype=self.dtype)
-        self.convGru3 = ConvGru(input_size=(
-            input_size[1], input_size[1]), dimensions=filters[2], dtype=self.dtype)
+        self.convGru1 = ConvGru(input_size=(
+            input_size[0], input_size[0]), dimensions=filters[0], dtype=self.dtype)
+        self.convGru2 = ConvGru(input_size=(
+            input_size[1], input_size[1]), dimensions=filters[1], dtype=self.dtype)
         self.spatialChannelAttention3 = SpatialChannelAttentionModule(
             filters=filters[2:4])
-        self.convGru2 = ConvGru(input_size=(
-            input_size[2], input_size[2]), dimensions=filters[1], dtype=self.dtype)
+        self.convGru3 = ConvGru(input_size=(
+            input_size[2], input_size[2]), dimensions=filters[2], dtype=self.dtype)
         self.spatialChannelAttention2 = SpatialChannelAttentionModule(
             filters=filters[1:3])
-        self.convGru1 = ConvGru(input_size=(
-            input_size[3], input_size[3]), dimensions=filters[0], dtype=self.dtype)
+        self.convGru4 = ConvGru(input_size=(
+            input_size[3], input_size[3]), dimensions=filters[3], dtype=self.dtype)
         self.spatialChannelAttention1 = SpatialChannelAttentionModule(
             filters=filters[:2])
 
@@ -200,12 +212,32 @@ class VesNet(nn.Module):
 
         resEncoder4 = self.encoder4(resPool3)
 
+        # Insert latest input at the beginning
+        self.convGruInputs[0] = torch.cat(
+            (resEncoder1, self.convGruInputs[0][1:, :, :, :]))
+        self.convGruInputs[1] = torch.cat(
+            (resEncoder2, self.convGruInputs[1][1:, :, :, :]))
+        self.convGruInputs[2] = torch.cat(
+            (resEncoder3, self.convGruInputs[2][1:, :, :, :]))
+        self.convGruInputs[3] = torch.cat(
+            (resEncoder4, self.convGruInputs[3][1:, :, :, :]))
+
         # intermediate Steps
         # temporal attention units
-        resConvGru4 = self.convGru4(resEncoder4)
-        resConvGru3 = self.convGru3(resEncoder3)
-        resConvGru2 = self.convGru2(resEncoder2)
-        resConvGru1 = self.convGru1(resEncoder1)
+        # TODO: check again which dimensions need to be input and which ones to be output
+        resConvGru4 = self.convGru4(
+            torch.unsqueeze(self.convGruInputs[3], dim=0))[0][0]  # returns output and hidden state in two lists
+        resConvGru3 = self.convGru3(
+            torch.unsqueeze(self.convGruInputs[2], dim=0))[0][0]
+        resConvGru2 = self.convGru2(
+            torch.unsqueeze(self.convGruInputs[1], dim=0))[0][0]
+        resConvGru1 = self.convGru1(
+            torch.unsqueeze(self.convGruInputs[0], dim=0))[0][0]
+
+        resConvGru4 = torch.squeeze(resConvGru4[:, 0, :, :, :], dim=1)
+        resConvGru3 = torch.squeeze(resConvGru3[:, 0, :, :, :], dim=1)
+        resConvGru2 = torch.squeeze(resConvGru2[:, 0, :, :, :], dim=1)
+        resConvGru1 = torch.squeeze(resConvGru1[:, 0, :, :, :], dim=1)
 
         # decoder
         resSpatialChAtt3 = self.spatialChannelAttention3(
@@ -222,9 +254,7 @@ class VesNet(nn.Module):
             resConvGru1, resDecoder2)
         resUp2 = self.resizeUp2(resConvGru2)
         resDecoder1 = self.decoder1(resSpatialChAtt1, resUp2)
-        print(resDecoder1.size())
-
-        # output = torch.sigmoid(self.conv_out(dec1))
+        return self.conv_out(resDecoder1)
 
 
 if __name__ == '__main__':
@@ -232,12 +262,14 @@ if __name__ == '__main__':
     use_gpu = torch.cuda.is_available()
     if use_gpu:
         dtype = torch.cuda.FloatTensor  # computation in GPU
+        device = "cuda"
     else:
         dtype = torch.FloatTensor
+        device = "cpu"
 
     # image, depth (how many previous images are we putting in), channels, width, height
-    image = torch.rand((1, 5, 2, 320, 320))
+    image = torch.rand((1, 2, 320, 320), device='cuda')
 
-    model = VesNet(dtype=dtype)
+    model = VesNet(dtype=dtype, device=device).to(device)
 
     model(image)
