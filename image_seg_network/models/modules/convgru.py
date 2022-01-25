@@ -3,29 +3,24 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 
+
 class ConvGRUCell(nn.Module):
-    def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias, dtype):
+    def __init__(self, input_dim, hidden_dim, kernel_size, bias):
         """
         Initialize the ConvLSTM cell
-        :param input_size: (int, int)
-            Height and width of input tensor as (height, width).
         :param input_dim: int
             Number of channels of input tensor.
         :param hidden_dim: int
             Number of channels of hidden state.
-        :param kernel_size: (int, int)
+        :param kernel_size: int
             Size of the convolutional kernel.
         :param bias: bool
             Whether or not to add the bias.
-        :param dtype: torch.cuda.FloatTensor or torch.FloatTensor
-            Whether or not to use cuda.
         """
         super(ConvGRUCell, self).__init__()
-        self.height, self.width = input_size
-        self.padding = kernel_size[0] // 2, kernel_size[1] // 2
+        self.padding = kernel_size // 2
         self.hidden_dim = hidden_dim
         self.bias = bias
-        self.dtype = dtype
 
         self.conv_gates = nn.Conv2d(in_channels=input_dim + hidden_dim,
                                     out_channels=2*self.hidden_dim,  # for update_gate,reset_gate respectively
@@ -34,13 +29,16 @@ class ConvGRUCell(nn.Module):
                                     bias=self.bias)
 
         self.conv_can = nn.Conv2d(in_channels=input_dim+hidden_dim,
-                              out_channels=self.hidden_dim, # for candidate neural memory
-                              kernel_size=kernel_size,
-                              padding=self.padding,
-                              bias=self.bias)
+                                  out_channels=self.hidden_dim,  # for candidate neural memory
+                                  kernel_size=kernel_size,
+                                  padding=self.padding,
+                                  bias=self.bias)
 
-    def init_hidden(self, batch_size):
-        return (Variable(torch.zeros(batch_size, self.hidden_dim, self.height, self.width)).type(self.dtype))
+    def init_hidden(self, batch_size, input_size):
+        if torch.cuda.is_available():
+            return Variable(torch.zeros(batch_size, self.hidden_dim, input_size, input_size)).cuda()
+        else:
+            return Variable(torch.zeros(batch_size, self.hidden_dim, input_size, input_size))
 
     def forward(self, input_tensor, h_cur):
         """
@@ -68,11 +66,9 @@ class ConvGRUCell(nn.Module):
 
 
 class ConvGRU(nn.Module):
-    def __init__(self, input_size, input_dim, hidden_dim, kernel_size, num_layers,
-                 dtype, batch_first=False, bias=True, return_all_layers=False):
+    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers,
+                 batch_first=False, bias=True, return_all_layers=False):
         """
-        :param input_size: (int, int)
-            Height and width of input tensor as (height, width).
         :param input_dim: int e.g. 256
             Number of channels of input tensor.
         :param hidden_dim: int e.g. 1024
@@ -81,8 +77,6 @@ class ConvGRU(nn.Module):
             Size of the convolutional kernel.
         :param num_layers: int
             Number of ConvLSTM layers
-        :param dtype: torch.cuda.FloatTensor or torch.FloatTensor
-            Whether or not to use cuda.
         :param alexnet_path: str
             pretrained alexnet parameters
         :param batch_first: bool
@@ -96,15 +90,13 @@ class ConvGRU(nn.Module):
 
         # Make sure that both `kernel_size` and `hidden_dim` are lists having len == num_layers
         kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
-        hidden_dim  = self._extend_for_multilayer(hidden_dim, num_layers)
+        hidden_dim = self._extend_for_multilayer(hidden_dim, num_layers)
         if not len(kernel_size) == len(hidden_dim) == num_layers:
             raise ValueError('Inconsistent list length.')
 
-        self.height, self.width = input_size
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.kernel_size = kernel_size
-        self.dtype = dtype
         self.num_layers = num_layers
         self.batch_first = batch_first
         self.bias = bias
@@ -113,12 +105,10 @@ class ConvGRU(nn.Module):
         cell_list = []
         for i in range(0, self.num_layers):
             cur_input_dim = input_dim if i == 0 else hidden_dim[i - 1]
-            cell_list.append(ConvGRUCell(input_size=(self.height, self.width),
-                                         input_dim=cur_input_dim,
+            cell_list.append(ConvGRUCell(input_dim=cur_input_dim,
                                          hidden_dim=self.hidden_dim[i],
                                          kernel_size=self.kernel_size[i],
-                                         bias=self.bias,
-                                         dtype=self.dtype))
+                                         bias=self.bias))
 
         # convert python list to pytorch module
         self.cell_list = nn.ModuleList(cell_list)
@@ -138,10 +128,11 @@ class ConvGRU(nn.Module):
         if hidden_state is not None:
             raise NotImplementedError()
         else:
-            hidden_state = self._init_hidden(batch_size=input_tensor.size(0))
+            hidden_state = self._init_hidden(
+                batch_size=input_tensor.size(0), input_size=input_tensor.size(3))
 
         layer_output_list = []
-        last_state_list   = []
+        last_state_list = []
 
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
@@ -151,7 +142,7 @@ class ConvGRU(nn.Module):
             output_inner = []
             for t in range(seq_len):
                 # input current hidden and cell state then compute the next hidden and cell state through ConvLSTMCell forward function
-                h = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, t, :, :, :], # (b,t,c,h,w)
+                h = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, t, :, :, :],  # (b,t,c,h,w)
                                               h_cur=h)
                 output_inner.append(h)
 
@@ -163,20 +154,21 @@ class ConvGRU(nn.Module):
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
-            last_state_list   = last_state_list[-1:]
+            last_state_list = last_state_list[-1:]
 
         return layer_output_list, last_state_list
 
-    def _init_hidden(self, batch_size):
+    def _init_hidden(self, batch_size, input_size):
         init_states = []
         for i in range(self.num_layers):
-            init_states.append(self.cell_list[i].init_hidden(batch_size))
+            init_states.append(
+                self.cell_list[i].init_hidden(batch_size, input_size))
         return init_states
 
     @staticmethod
     def _check_kernel_size_consistency(kernel_size):
         if not (isinstance(kernel_size, tuple) or
-                    (isinstance(kernel_size, list) and all([isinstance(elem, tuple) for elem in kernel_size]))):
+                (isinstance(kernel_size, list) and all([isinstance(elem, tuple) for elem in kernel_size]))):
             raise ValueError('`kernel_size` must be tuple or list of tuples')
 
     @staticmethod
@@ -184,3 +176,21 @@ class ConvGRU(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
+
+
+if __name__ == "__main__":
+    # Generate a ConvGRU with 3 cells
+    # input_size and hidden_sizes reflect feature map depths.
+    # Height and Width are preserved by zero padding within the module.
+    model = ConvGRU(input_dim=8, hidden_dim=8,
+                    kernel_size=3, num_layers=1, batch_first=True).cuda()
+
+    # batch, sequence, channels, height, width
+    x = Variable(torch.FloatTensor(5, 4, 8, 64, 64)).cuda()
+    output = model(x)
+
+    # output is a list of sequential hidden representation tensors
+    print(type(output))  # tuple
+
+    # final output size
+    print(output[0][-1].size())  # torch.Size([1, 16, 64, 64])

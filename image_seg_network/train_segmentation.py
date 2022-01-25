@@ -6,7 +6,7 @@ from tqdm import tqdm
 from dataio.loader import get_dataset, get_dataset_path
 #from dataio.transformation import get_dataset_transformation
 from utils.util import json_file_to_pyobj
-#from utils.visualiser import Visualiser
+from utils.visualiser import Visualiser
 from utils.error_logger import ErrorLogger
 
 from models import get_model
@@ -39,17 +39,21 @@ def train(arguments):
         exit()
 
     # Setup Data Loader
+    # transform=ds_transform['train'],
     train_dataset = ds_class(ds_path, split='train',
-                             transform=ds_transform['train'], preload_data=train_opts.preloadData)
-    valid_dataset = ds_class(ds_path, split='validation',
-                             transform=ds_transform['valid'], preload_data=train_opts.preloadData)
+                             preload_data=train_opts.preloadData)
+    # transform=ds_transform['valid']
+    valid_dataset = ds_class(ds_path, split='valid',
+                             preload_data=train_opts.preloadData)
+    # transform=ds_transform['valid']
     test_dataset = ds_class(ds_path, split='test',
-                            transform=ds_transform['valid'], preload_data=train_opts.preloadData)
+                            preload_data=train_opts.preloadData)
+    # TODO:  set number of workers up again
     train_loader = DataLoader(
-        dataset=train_dataset, num_workers=16, batch_size=train_opts.batchSize, shuffle=True)
-    valid_loader = DataLoader(dataset=valid_dataset, num_workers=16,
+        dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=False)
+    valid_loader = DataLoader(dataset=valid_dataset, num_workers=4,
                               batch_size=train_opts.batchSize, shuffle=False)
-    test_loader = DataLoader(dataset=test_dataset,  num_workers=16,
+    test_loader = DataLoader(dataset=test_dataset,  num_workers=4,
                              batch_size=train_opts.batchSize, shuffle=False)
 
     # Visualisation Parameters

@@ -20,6 +20,7 @@ class ModelOpts:
         self.path_pre_trained_model = None
         self.criterion = 'cross_entropy'
         self.type = 'seg'
+        self.bptt_step = 4
 
         # Attention
         self.nonlocal_mode = 'concatenation'
@@ -41,6 +42,7 @@ class ModelOpts:
         self.output_nc = opts.output_nc
         self.continue_train = opts.continue_train
         self.which_epoch = opts.which_epoch
+        self.bptt_step = opts.bptt_step
 
         if hasattr(opts, 'type'):
             self.type = opts.type
@@ -82,16 +84,10 @@ def get_model(json_opts):
         # Return the model type
         from .feedforward_seg_model import FeedForwardSegmentation
         model = FeedForwardSegmentation()
-
     elif model_type == 'classifier':
         # Return the model type
         from .feedforward_classifier import FeedForwardClassifier
         model = FeedForwardClassifier()
-
-    elif model_type == 'aggregated_classifier':
-        # Return the model type
-        from .aggregated_classifier import AggregatedClassifier
-        model = AggregatedClassifier()
 
     # Initialise the created model
     model.initialize(model_opts)

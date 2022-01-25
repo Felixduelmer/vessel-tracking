@@ -8,7 +8,7 @@ from .base_model import BaseModel
 from .networks import get_network
 from .layers.loss import *
 from .networks_other import get_scheduler, print_network, benchmark_fp_bp_time
-from .networks.utils import segmentation_stats, get_optimizer, get_criterion
+from .utils import segmentation_stats, get_optimizer, get_criterion
 from .networks.utils import HookBasedFeatureExtractor
 
 
@@ -25,6 +25,7 @@ class FeedForwardSegmentation(BaseModel):
         self.input = None
         self.target = None
         self.tensor_dim = opts.tensor_dim
+        self.bptt = opts.bptt_step
 
         # load/define networks
         self.net = get_network(opts.model_type, n_classes=opts.output_nc,
@@ -68,25 +69,20 @@ class FeedForwardSegmentation(BaseModel):
     def set_input(self, *inputs):
         # self.input.resize_(inputs[0].size()).copy_(inputs[0])
         for idx, _input in enumerate(inputs):
-            # If it's a 5D array and 2D model then (B x C x H x W x Z) -> (BZ x C x H x W)
-            bs = _input.size()
-            if (self.tensor_dim == '2D') and (len(bs) > 4):
-                _input = _input.permute(0, 4, 1, 2, 3).contiguous().view(
-                    bs[0]*bs[4], bs[1], bs[2], bs[3])
-
             # Define that it's a cuda array
             if idx == 0:
-                self.input = _input.cuda() if self.use_cuda else _input
+                self.input = _input.cuda().float() if self.use_cuda else _input.float()
             elif idx == 1:
                 self.target = Variable(
-                    _input.cuda()) if self.use_cuda else Variable(_input)
-                assert self.input.size() == self.target.size()
+                    _input.cuda()).float() if self.use_cuda else Variable(_input).float()
+                assert len(self.input) == len(self.target)
 
     def forward(self, split):
         if split == 'train':
-            self.prediction = self.net(Variable(self.input))
+            self.prediction = self.net(Variable(self.input), self.bptt)
         elif split == 'test':
-            self.prediction = self.net(Variable(self.input, volatile=True))
+            self.prediction = self.net(
+                Variable(self.input, volatile=True), self.bptt)
             # Apply a softmax and return a segmentation map
             self.logits = self.net.apply_argmax_softmax(self.prediction)
             self.pred_seg = self.logits.data.max(1)[1].unsqueeze(1)
@@ -136,7 +132,7 @@ class FeedForwardSegmentation(BaseModel):
         return OrderedDict(seg_stats)
 
     def get_current_errors(self):
-        return OrderedDict([('Seg_Loss', self.loss_S.data[0])
+        return OrderedDict([('Seg_Loss', self.loss_S.item())
                             ])
 
     def get_current_visuals(self):

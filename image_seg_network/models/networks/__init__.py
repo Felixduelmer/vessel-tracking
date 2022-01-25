@@ -1,4 +1,4 @@
-#from ...VesNet import *
+from .VesNet import *
 
 
 def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D',
@@ -7,11 +7,7 @@ def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D'
     model = _get_model_instance(name, tensor_dim)
 
     if name in ['vesnet']:
-        model = model(dytpe=dtype,
-                      is_batchnorm=True,
-                      in_channels=in_channels,
-                      feature_scale=feature_scale,
-                      is_deconv=False)
+        model = model()
     else:
         raise 'Model {} not available'.format(name)
 
@@ -20,5 +16,5 @@ def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D'
 
 def _get_model_instance(name, tensor_dim):
     return {
-        'vesnet': {},
+        'vesnet': {'2D': VesNet},
     }[name][tensor_dim]
