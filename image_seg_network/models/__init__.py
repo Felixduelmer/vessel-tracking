@@ -12,7 +12,6 @@ class ModelOpts:
         self.save_dir = './checkpoints/default'
         self.model_type = 'unet'
         self.input_nc = 1
-        self.output_nc = 4
         self.lr_rate = 1e-12
         self.l2_reg_weight = 0.0
         self.feature_scale = 4
@@ -39,7 +38,6 @@ class ModelOpts:
             opts.checkpoints_dir, opts.experiment_name)
         self.model_type = opts.model_type
         self.input_nc = opts.input_nc
-        self.output_nc = opts.output_nc
         self.continue_train = opts.continue_train
         self.which_epoch = opts.which_epoch
         self.bptt_step = opts.bptt_step

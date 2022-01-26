@@ -6,10 +6,10 @@ from skimage import transform
 
 
 def main():
-    images_h5 = h5py.File('/home/felix/Downloads/images.h5', 'r')
+    images_h5 = h5py.File('/home/robotics-verse/projects/felix/DataSet/felix_data/Zhongliang/images.h5', 'r')
     images = images_h5['Zhongliang-01'][:].transpose(
         (0, 2, 3, 1))
-    labels_h5 = h5py.File('/home/felix/Downloads/labels.h5', 'r')
+    labels_h5 = h5py.File('/home/robotics-verse/projects/felix/DataSet/felix_data/Zhongliang/labels.h5', 'r')
     cropped_labels = labels_h5['Images'][:, :, 121:854,
                                          472:988].transpose((0, 2, 3, 1))
     cropped_bmode_images = images[:, 121:854, 472:988, :]

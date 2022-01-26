@@ -1,3 +1,4 @@
+import cv2
 import torch
 import torch.utils.data as data
 import h5py
@@ -5,7 +6,6 @@ import numpy as np
 import datetime
 from skimage import color, io
 from matplotlib import pyplot as plt
-import cv2
 
 from os import listdir
 from os.path import join
@@ -22,10 +22,10 @@ class UltraSoundDataset(data.Dataset):
         print(self.images.shape)
 
         if preload_data:
-            self.images = np.array(self.images[:50])
+            self.images = np.array(self.images[:])
 
         self.labels = np.expand_dims(
-            np.array(f['y_'+split][:50], dtype=np.int64), axis=1)  # [:1000]
+            np.array(f['y_'+split][:], dtype=np.int64), axis=1)  # [:1000]
 
         # print(class_weight)
         assert len(self.images) == len(self.labels)

@@ -48,6 +48,24 @@ class SoftDiceLoss(nn.Module):
         score = torch.sum(2.0 * inter / union)
         score = 1.0 - score / (float(batch_size) * float(self.n_classes))
 
+
+class BinaryDiceLoss(nn.Module):
+    def __init__(self):
+        super(BinaryDiceLoss, self).__init__()
+
+    def forward(self, input, target):
+        smooth = 0.01
+        batch_size = input.size(0)
+
+        input = (input>0.8).int().view(batch_size, -1)
+        target = target.view(batch_size, -1)
+
+        inter = torch.sum(input * target, 1) + smooth
+        union = torch.sum(input, 1) + torch.sum(target, 1) + smooth
+
+        score = torch.sum(2.0 * inter / union)
+        score = 1.0 - score / float(batch_size)
+
         return score
 
 

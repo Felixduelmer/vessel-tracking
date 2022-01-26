@@ -5,7 +5,7 @@ Misc Utility functions
 import os
 import numpy as np
 import torch.optim as optim
-from torch.nn import CrossEntropyLoss
+from torch.nn import CrossEntropyLoss, BCELoss, BCEWithLogitsLoss
 from utils.metrics import segmentation_scores, dice_score_list
 from sklearn import metrics
 from .layers.loss import *
@@ -35,6 +35,8 @@ def get_criterion(opts):
             criterion = cross_entropy_2D if opts.tensor_dim == '2D' else cross_entropy_3D
         elif 'classifier' in opts.type:
             criterion = CrossEntropyLoss()
+    elif opts.criterion == 'binary_dice_loss':
+        criterion = BCEWithLogitsLoss()#BinaryDiceLoss()
     elif opts.criterion == 'dice_loss':
         criterion = SoftDiceLoss(opts.output_nc)
     elif opts.criterion == 'dice_loss_pancreas_only':
@@ -76,8 +78,8 @@ def adjust_learning_rate(optimizer, init_lr, epoch):
 
 
 def segmentation_stats(pred_seg, target):
-    n_classes = pred_seg.size(1)
-    pred_lbls = pred_seg.data.max(1)[1].cpu().numpy()
+    n_classes = 2
+    pred_lbls = np.rint(np.squeeze(pred_seg.data.cpu().numpy(), axis=1))
     gt = np.squeeze(target.data.cpu().numpy(), axis=1)
     gts, preds = [], []
     for gt_, pred_ in zip(gt, pred_lbls):

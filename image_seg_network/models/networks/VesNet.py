@@ -244,8 +244,8 @@ class VesNet(nn.Module):
         return self.conv_out(resDecoder1)
 
     @staticmethod
-    def apply_argmax_softmax(pred):
-        log_p = torch.nn.functional.softmax(pred, dim=1)
+    def apply_sigmoid(pred):
+        log_p = torch.sigmoid(pred)
 
         return log_p
 

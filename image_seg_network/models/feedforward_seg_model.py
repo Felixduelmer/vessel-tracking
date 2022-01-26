@@ -28,8 +28,7 @@ class FeedForwardSegmentation(BaseModel):
         self.bptt = opts.bptt_step
 
         # load/define networks
-        self.net = get_network(opts.model_type, n_classes=opts.output_nc,
-                               in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode,
+        self.net = get_network(opts.model_type, in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode,
                                tensor_dim=opts.tensor_dim, feature_scale=opts.feature_scale,
                                attention_dsample=opts.attention_dsample)
         if self.use_cuda:
@@ -82,10 +81,11 @@ class FeedForwardSegmentation(BaseModel):
             self.prediction = self.net(Variable(self.input), self.bptt)
         elif split == 'test':
             self.prediction = self.net(
-                Variable(self.input, volatile=True), self.bptt)
+                Variable(self.input, requires_grad=False), self.bptt)
+            self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
-            self.logits = self.net.apply_argmax_softmax(self.prediction)
-            self.pred_seg = self.logits.data.max(1)[1].unsqueeze(1)
+            self.logits = self.net.apply_sigmoid(self.prediction)
+            self.pred_seg = torch.round(self.logits.data)*255
 
     def backward(self):
         self.loss_S = self.criterion(self.prediction, self.target)

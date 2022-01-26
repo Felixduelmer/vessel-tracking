@@ -50,10 +50,10 @@ def train(arguments):
                             preload_data=train_opts.preloadData)
     # TODO:  set number of workers up again
     train_loader = DataLoader(
-        dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=False)
-    valid_loader = DataLoader(dataset=valid_dataset, num_workers=4,
+        dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=False)
+    valid_loader = DataLoader(dataset=valid_dataset, num_workers=0,
                               batch_size=train_opts.batchSize, shuffle=False)
-    test_loader = DataLoader(dataset=test_dataset,  num_workers=4,
+    test_loader = DataLoader(dataset=test_dataset,  num_workers=0,
                              batch_size=train_opts.batchSize, shuffle=False)
 
     # Visualisation Parameters
