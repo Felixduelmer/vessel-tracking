@@ -125,9 +125,7 @@ class ConvGRU(nn.Module):
             input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
 
         # Implement stateful ConvLSTM
-        if hidden_state is not None:
-            raise NotImplementedError()
-        else:
+        if hidden_state is None:
             hidden_state = self._init_hidden(
                 batch_size=input_tensor.size(0), input_size=input_tensor.size(3))
 
@@ -150,13 +148,13 @@ class ConvGRU(nn.Module):
             cur_layer_input = layer_output
 
             layer_output_list.append(layer_output)
-            last_state_list.append([h])
+            last_state_list.append(h)
 
         if not self.return_all_layers:
-            layer_output_list = layer_output_list[-1:]
-            last_state_list = last_state_list[-1:]
+            layer_output_list = layer_output_list[-1]
+            last_state_list = last_state_list[-1]
 
-        return layer_output_list, last_state_list
+        return layer_output_list, torch.unsqueeze(last_state_list, dim=0)
 
     def _init_hidden(self, batch_size, input_size):
         init_states = []

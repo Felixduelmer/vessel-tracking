@@ -4,6 +4,8 @@ from models.modules.convgru import ConvGRU
 from torch.nn.utils.rnn import pad_sequence
 from models.networks.utils import MultiAttentionBlock
 from models.modules.cbam import ChannelGate
+from torch.autograd import Variable
+import numpy as np
 
 '''Define the number of flters you want to normalize to'''
 
@@ -144,48 +146,51 @@ class VesNet(nn.Module):
             self.dtype = torch.FloatTensor
             self.device = torch.device('cpu')
 
-        filters = [64, 128, 256, 512]
-        filters = [int(x / self.feature_scale) for x in filters]
+        self.filters = [64, 128, 256, 512]
+        self.filters = [int(x / self.feature_scale) for x in self.filters]
 
-        self.imagePrep = ConvBatchNormPreLU(self.in_channels, filters[0])
-        self.encoder1 = Encoder(filters[0])
-        self.pool1 = Conv2x2Stride2x2Prelu(filters[0], filters[1])
+        self.imagePrep = ConvBatchNormPreLU(self.in_channels, self.filters[0])
+        self.encoder1 = Encoder(self.filters[0])
+        self.pool1 = Conv2x2Stride2x2Prelu(self.filters[0], self.filters[1])
 
-        self.encoder2 = Encoder(filters[1])
-        self.pool2 = Conv2x2Stride2x2Prelu(filters[1], filters[2])
+        self.encoder2 = Encoder(self.filters[1])
+        self.pool2 = Conv2x2Stride2x2Prelu(self.filters[1], self.filters[2])
 
-        self.encoder3 = Encoder(filters[2])
-        self.pool3 = Conv2x2Stride2x2Prelu(filters[2], filters[3])
+        self.encoder3 = Encoder(self.filters[2])
+        self.pool3 = Conv2x2Stride2x2Prelu(self.filters[2], self.filters[3])
 
-        self.encoder4 = Encoder(filters[3])
+        self.encoder4 = Encoder(self.filters[3])
 
         # skip connections with Conv GRU
-        self.convGru1 = ConvGru(input_size=filters[0])
-        self.convGru2 = ConvGru(input_size=filters[1])
+        self.convGru1 = ConvGru(input_size=self.filters[0])
+        self.convGru2 = ConvGru(input_size=self.filters[1])
         self.spatialChannelAttention3 = SpatialChannelAttentionModule(
-            filters=filters[2:4])
-        self.convGru3 = ConvGru(input_size=filters[2])
+            filters=self.filters[2:4])
+        self.convGru3 = ConvGru(input_size=self.filters[2])
         self.spatialChannelAttention2 = SpatialChannelAttentionModule(
-            filters=filters[1:3])
-        self.convGru4 = ConvGru(input_size=filters[3])
+            filters=self.filters[1:3])
+        self.convGru4 = ConvGru(input_size=self.filters[3])
         self.spatialChannelAttention1 = SpatialChannelAttentionModule(
-            filters=filters[:2])
+            filters=self.filters[:2])
 
-        self.resizeUp4 = ResizeUpConvolution(filters=filters[2:4])
+        self.resizeUp4 = ResizeUpConvolution(filters=self.filters[2:4])
 
-        self.decoder3 = Decoder(filters[2])
-        self.resizeUp3 = ResizeUpConvolution(filters=filters[1:3])
+        self.decoder3 = Decoder(self.filters[2])
+        self.resizeUp3 = ResizeUpConvolution(filters=self.filters[1:3])
 
-        self.decoder2 = Decoder(filters[1])
-        self.resizeUp2 = ResizeUpConvolution(filters=filters[:2])
+        self.decoder2 = Decoder(self.filters[1])
+        self.resizeUp2 = ResizeUpConvolution(filters=self.filters[:2])
 
-        self.decoder1 = Decoder(filters[0])
+        self.decoder1 = Decoder(self.filters[0])
 
-        self.conv_out = nn.Conv2d(filters[0], 1, 1)
+        self.conv_out = nn.Conv2d(self.filters[0], 1, 1)
 
-    def forward(self, input, bptt):
-        # encoding path
+    def forward(self, input, bptt, hidden):
+
         bs = input.size(0)
+        if hidden is None:
+            hidden = self._init_hidden(bs, bptt, input.size(3))
+        # encoding path
         resImagePrep = self.imagePrep(input)
 
         resEncoder1 = self.encoder1(resImagePrep)
@@ -211,10 +216,10 @@ class VesNet(nn.Module):
         # intermediate Steps
         # temporal attention units
         # returns output and hidden state in two lists
-        resConvGru4 = self.convGru4(resEncoder4)[0][-1]
-        resConvGru3 = self.convGru3(resEncoder3)[0][-1]
-        resConvGru2 = self.convGru2(resEncoder2)[0][-1]
-        resConvGru1 = self.convGru1(resEncoder1)[0][-1]
+        resConvGru4, hidden[3] = self.convGru4(resEncoder4, hidden[3])
+        resConvGru3, hidden[2] = self.convGru3(resEncoder3, hidden[2])
+        resConvGru2, hidden[1] = self.convGru2(resEncoder2, hidden[1])
+        resConvGru1, hidden[0] = self.convGru1(resEncoder1, hidden[0])
 
         resConvGru4 = resConvGru4.reshape(
             resConvGru4.size(0) * resConvGru4.size(1), *resConvGru4.shape[2:])[:bs]
@@ -241,13 +246,21 @@ class VesNet(nn.Module):
         resUp2 = self.resizeUp2(resConvGru2)
         resDecoder1 = self.decoder1(resSpatialChAtt1, resUp2)
 
-        return self.conv_out(resDecoder1)
+        return self.conv_out(resDecoder1), hidden
 
     @staticmethod
     def apply_sigmoid(pred):
         log_p = torch.sigmoid(pred)
 
         return log_p
+
+    def _init_hidden(self, batch_size, tbtt, input_size):
+        hidden_states = []
+        for i, filter in enumerate(self.filters):
+            # number of hidden layers comes up first
+            hidden_states.append(Variable(torch.zeros(
+                1, np.int(np.ceil(batch_size/tbtt)), filter, np.int(input_size/(2**i)), np.int(input_size/(2**i)))).to(self.device))
+        return hidden_states
 
 
 if __name__ == '__main__':

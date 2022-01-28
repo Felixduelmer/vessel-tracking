@@ -24,6 +24,7 @@ class FeedForwardSegmentation(BaseModel):
         # define network input and output pars
         self.input = None
         self.target = None
+        self.hidden = None
         self.tensor_dim = opts.tensor_dim
         self.bptt = opts.bptt_step
 
@@ -78,10 +79,11 @@ class FeedForwardSegmentation(BaseModel):
 
     def forward(self, split):
         if split == 'train':
-            self.prediction = self.net(Variable(self.input), self.bptt)
+            self.prediction, self.hidden = self.net(
+                Variable(self.input), self.bptt, self.hidden)
         elif split == 'test':
-            self.prediction = self.net(
-                Variable(self.input, requires_grad=False), self.bptt)
+            self.prediction, _ = self.net(
+                Variable(self.input, requires_grad=False), self.bptt, self.hidden)
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
             self.pred_seg = torch.round(self.prediction.data)*255
@@ -89,6 +91,7 @@ class FeedForwardSegmentation(BaseModel):
     def backward(self):
         self.loss_S = self.criterion(self.prediction, self.target)
         self.loss_S.backward()
+        self.hidden = [h.detach() for h in self.hidden]
 
     def optimize_parameters(self):
         self.net.train()
