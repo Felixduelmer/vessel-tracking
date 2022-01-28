@@ -84,8 +84,7 @@ class FeedForwardSegmentation(BaseModel):
                 Variable(self.input, requires_grad=False), self.bptt)
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
-            self.logits = self.net.apply_sigmoid(self.prediction)
-            self.pred_seg = torch.round(self.logits.data)*255
+            self.pred_seg = torch.round(self.prediction.data)*255
 
     def backward(self):
         self.loss_S = self.criterion(self.prediction, self.target)
@@ -135,10 +134,12 @@ class FeedForwardSegmentation(BaseModel):
         return OrderedDict([('Seg_Loss', self.loss_S.item())
                             ])
 
-    def get_current_visuals(self):
-        inp_img = util.tensor2im(self.input, 'img')
+    def get_current_visuals(self, labels):
+        inp_img = util.tensor2im(self.input[:, [0], :, :], 'bmode')
+        inp_doppler = util.tensor2im(self.input[:, [1], :, :], 'doppler')
         seg_img = util.tensor2im(self.pred_seg, 'lbl')
-        return OrderedDict([('out_S', seg_img), ('inp_S', inp_img)])
+        ground_truth = util.tensor2im(labels, 'ground_truth')
+        return OrderedDict([('out_S', seg_img), ('ground_truth', ground_truth), ('inp_S', inp_img), ('inp_doppler', inp_doppler)])
 
     def get_feature_maps(self, layer_name, upscale):
         feature_extractor = HookBasedFeatureExtractor(

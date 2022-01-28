@@ -90,7 +90,7 @@ def train(arguments):
                 error_logger.update({**errors, **stats}, split=split)
 
                 # Visualise predictions
-                visuals = model.get_current_visuals()
+                visuals = model.get_current_visuals(labels)
                 visualizer.display_current_results(
                     visuals, epoch=epoch, save_result=False)
 

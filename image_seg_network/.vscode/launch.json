@@ -8,7 +8,7 @@
             "name": "Train Segmentation",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "train_segmentation.py",
             "console": "integratedTerminal",
             "args": [
                 "-c=configs/config_vesnet.json"

@@ -2,3 +2,7 @@
 *.pyc
 
 network/modules/__pycache__/
+
+*.pth
+
+image_seg_network/checkpoints/experiment_vesnet/loss_log.txt
