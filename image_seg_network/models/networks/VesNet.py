@@ -132,7 +132,7 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, bptt_step, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
+    def __init__(self, in_channels=1, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
         self.bptt_step = bptt_step
@@ -140,6 +140,7 @@ class VesNet(nn.Module):
         self.feature_scale = feature_scale
         self.nonlocal_mode = nonlocal_mode
         self.attention_dsample = attention_dsample
+        self.bs = -1
         if torch.cuda.is_available():
             self.dtype = torch.cuda.FloatTensor  # computation in GPU
             self.device = torch.device('cuda')
@@ -188,9 +189,10 @@ class VesNet(nn.Module):
 
     def forward(self, input, hidden):
 
-        bs = input.size(0)
-        if hidden is None:
-            hidden = self._init_hidden(bs, self.bptt_step, input.size(3))
+        if hidden is None or self.bs != input.size(0):
+            self.bs = input.size(0)
+            hidden = self._init_hidden(self.bs, bptt, input.size(3))
+        self.bs = input.size(0)
         # encoding path
         resImagePrep = self.imagePrep(input)
 
@@ -223,13 +225,13 @@ class VesNet(nn.Module):
         resConvGru1, hidden[0] = self.convGru1(resEncoder1, hidden[0])
 
         resConvGru4 = resConvGru4.reshape(
-            resConvGru4.size(0) * resConvGru4.size(1), *resConvGru4.shape[2:])[:bs]
+            resConvGru4.size(0) * resConvGru4.size(1), *resConvGru4.shape[2:])[:self.bs]
         resConvGru3 = resConvGru3.reshape(
-            resConvGru3.size(0) * resConvGru3.size(1), *resConvGru3.shape[2:])[:bs]
+            resConvGru3.size(0) * resConvGru3.size(1), *resConvGru3.shape[2:])[:self.bs]
         resConvGru2 = resConvGru2.reshape(
-            resConvGru2.size(0) * resConvGru2.size(1), *resConvGru2.shape[2:])[:bs]
+            resConvGru2.size(0) * resConvGru2.size(1), *resConvGru2.shape[2:])[:self.bs]
         resConvGru1 = resConvGru1.reshape(
-            resConvGru1.size(0) * resConvGru1.size(1), *resConvGru1.shape[2:])[:bs]
+            resConvGru1.size(0) * resConvGru1.size(1), *resConvGru1.shape[2:])[:self.bs]
 
         # decoder
         resSpatialChAtt3 = self.spatialChannelAttention3(
