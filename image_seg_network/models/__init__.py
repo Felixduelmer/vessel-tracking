@@ -15,11 +15,10 @@ class ModelOpts:
         self.lr_rate = 1e-12
         self.l2_reg_weight = 0.0
         self.feature_scale = 4
-        self.tensor_dim = '2D'
         self.path_pre_trained_model = None
         self.criterion = 'cross_entropy'
         self.type = 'seg'
-        self.bptt_step = 4
+        self.has_hidden = False
 
         # Attention
         self.nonlocal_mode = 'concatenation'
@@ -40,8 +39,9 @@ class ModelOpts:
         self.input_nc = opts.input_nc
         self.continue_train = opts.continue_train
         self.which_epoch = opts.which_epoch
-        self.bptt_step = opts.bptt_step
 
+        if(hasattr(opts, 'has_hidden')):
+            self.has_hidden = opts.has_hidden
         if hasattr(opts, 'type'):
             self.type = opts.type
         if hasattr(opts, 'l2_reg_weight'):
@@ -50,8 +50,6 @@ class ModelOpts:
             self.lr_rate = opts.lr_rate
         if hasattr(opts, 'feature_scale'):
             self.feature_scale = opts.feature_scale
-        if hasattr(opts, 'tensor_dim'):
-            self.tensor_dim = opts.tensor_dim
 
         if hasattr(opts, 'path_pre_trained_model'):
             self.path_pre_trained_model = opts.path_pre_trained_model

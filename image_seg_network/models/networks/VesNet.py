@@ -132,9 +132,10 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
+    def __init__(self, bptt_step, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
+        self.bptt_step = bptt_step
         self.in_channels = in_channels
         self.feature_scale = feature_scale
         self.nonlocal_mode = nonlocal_mode
@@ -185,11 +186,11 @@ class VesNet(nn.Module):
 
         self.conv_out = nn.Conv2d(self.filters[0], 1, 1)
 
-    def forward(self, input, bptt, hidden):
+    def forward(self, input, hidden):
 
         bs = input.size(0)
         if hidden is None:
-            hidden = self._init_hidden(bs, bptt, input.size(3))
+            hidden = self._init_hidden(bs, self.bptt_step, input.size(3))
         # encoding path
         resImagePrep = self.imagePrep(input)
 
@@ -205,13 +206,13 @@ class VesNet(nn.Module):
         resEncoder4 = self.encoder4(resPool3)
 
         resEncoder4 = pad_sequence(
-            list(resEncoder4.split(bptt)), batch_first=True)
+            list(resEncoder4.split(self.bptt_step)), batch_first=True)
         resEncoder3 = pad_sequence(
-            list(resEncoder3.split(bptt)), batch_first=True)
+            list(resEncoder3.split(self.bptt_step)), batch_first=True)
         resEncoder2 = pad_sequence(
-            list(resEncoder2.split(bptt)), batch_first=True)
+            list(resEncoder2.split(self.bptt_step)), batch_first=True)
         resEncoder1 = pad_sequence(
-            list(resEncoder1.split(bptt)), batch_first=True)
+            list(resEncoder1.split(self.bptt_step)), batch_first=True)
 
         # intermediate Steps
         # temporal attention units

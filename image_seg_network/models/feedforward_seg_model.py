@@ -20,18 +20,16 @@ class FeedForwardSegmentation(BaseModel):
     def initialize(self, opts, **kwargs):
         BaseModel.initialize(self, opts, **kwargs)
         self.isTrain = opts.isTrain
+        self.has_hidden = opts.has_hidden
 
         # define network input and output pars
         self.input = None
         self.target = None
         self.hidden = None
-        self.tensor_dim = opts.tensor_dim
-        self.bptt = opts.bptt_step
 
         # load/define networks
-        self.net = get_network(opts.model_type, in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode,
-                               tensor_dim=opts.tensor_dim, feature_scale=opts.feature_scale,
-                               attention_dsample=opts.attention_dsample)
+        self.net = get_network(opts.model_type, in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
+                               attention_dsample=opts.attention_dsample, bptt_step=opts.bptt_step)
         if self.use_cuda:
             self.net = self.net.cuda()
 
@@ -79,11 +77,19 @@ class FeedForwardSegmentation(BaseModel):
 
     def forward(self, split):
         if split == 'train':
-            self.prediction, self.hidden = self.net(
-                Variable(self.input), self.bptt, self.hidden)
+            if self.has_hidden:
+                self.prediction, self.hidden = self.net(
+                    Variable(self.input), self.hidden)
+            else:
+                self.prediction = self.net(Variable(self.input))
+
         elif split == 'test':
-            self.prediction, _ = self.net(
-                Variable(self.input, requires_grad=False), self.bptt, self.hidden)
+            if self.has_hidden:
+                self.prediction, _ = self.net(
+                    Variable(self.input, requires_grad=False), self.hidden)
+            else:
+                self.prediction = self.net(
+                    Variable(self.input, requires_grad=False))
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
             self.pred_seg = torch.round(self.prediction.data)*255
@@ -91,7 +97,8 @@ class FeedForwardSegmentation(BaseModel):
     def backward(self):
         self.loss_S = self.criterion(self.prediction, self.target)
         self.loss_S.backward()
-        self.hidden = [h.detach() for h in self.hidden]
+        if self.has_hidden:
+            self.hidden = [h.detach() for h in self.hidden]
 
     def optimize_parameters(self):
         self.net.train()

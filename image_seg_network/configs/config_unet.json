@@ -5,7 +5,7 @@
         "save_epoch_freq": 10,
         "lr_policy": "step",
         "lr_decay_iters": 250,
-        "batchSize": 2,
+        "batchSize": 1,
         "preloadData": true
     },
     "visualisation": {
@@ -22,11 +22,9 @@
         "type": "seg",
         "continue_train": false,
         "which_epoch": -1,
-        "model_type": "vesnet",
-        "division_factor": 16,
-        "bptt_step": 1,
-        "has_hidden": true,
-        "input_nc": 2,
+        "model_type": "unet",
+        "division_factor": 1,
+        "input_nc": 1,
         "lr_rate": 1e-4,
         "l2_reg_weight": 1e-6,
         "feature_scale": 4,
@@ -35,7 +33,7 @@
         ],
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "experiment_vesnet",
+        "experiment_name": "experiment_unet",
         "criterion": "binary_dice_loss"
     }
 }

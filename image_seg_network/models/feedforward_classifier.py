@@ -27,12 +27,10 @@ class FeedForwardClassifier(BaseModel):
         self.input = None
         self.target = None
         self.labels = None
-        self.tensor_dim = opts.tensor_dim
 
         # load/define networks
         self.net = get_network(opts.model_type, n_classes=opts.output_nc,
-                               in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode,
-                               tensor_dim=opts.tensor_dim, feature_scale=opts.feature_scale,
+                               in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
                                attention_dsample=opts.attention_dsample,
                                aggregation_mode=opts.aggregation_mode)
         if self.use_cuda:

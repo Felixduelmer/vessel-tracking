@@ -6,3 +6,5 @@ network/modules/__pycache__/
 *.pth
 
 image_seg_network/checkpoints/experiment_vesnet/loss_log.txt
+
+image_seg_network/checkpoints/experiment_unet/loss_log.txt
