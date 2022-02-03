@@ -19,13 +19,40 @@ class UltraSoundDataset(data.Dataset):
         f = h5py.File(root_path, 'r')
 
         self.images = f['x_'+split]
-        print(self.images.shape)
+
+        self.seq_len = 20
 
         if preload_data:
             self.images = np.array(self.images[:])
 
         self.labels = np.expand_dims(
             np.array(f['y_'+split][:], dtype=np.int64), axis=1)  # [:1000]
+
+        assert len(self.images) == len(self.labels)
+
+        # reduce image to gray scale
+        self.images = np.array([cv2.cvtColor(
+            self.images[i, j, :, :, :], cv2.COLOR_BGR2GRAY) for j in range(self.images.shape[1]) for i in range(self.images.shape[0])]).reshape(*self.images.shape[:4])
+        # prepare sequences
+        if len(self.images) % self.seq_len != 0:
+            if split == 'train':
+                self.images = np.concatenate(
+                    (self.images, np.zeros((self.seq_len - (len(self.images) % self.seq_len), *self.images.shape[1:]))))
+                self.labels = np.concatenate(
+                    (self.labels, np.zeros((self.seq_len - (len(self.labels) % self.seq_len), *self.labels.shape[1:]))))
+            else:
+                print((len(self.images)-int(len(self.images)/self.seq_len)))
+                self.images = self.images[:(
+                    len(self.images)-(len(self.images) % self.seq_len))]
+                self.labels = self.labels[:(
+                    len(self.labels)-(len(self.labels) % self.seq_len))]
+
+        self.images = self.images.reshape(int(np.ceil(len(self.images)/self.seq_len)),
+                                          self.seq_len, *self.images.shape[1:])
+        self.labels = self.labels.reshape(int(np.ceil(len(self.labels)/self.seq_len)),
+                                          self.seq_len, *self.labels.shape[1:])
+
+        print(self.images.shape, self.labels.shape)
 
         # print(class_weight)
         assert len(self.images) == len(self.labels)
@@ -42,8 +69,7 @@ class UltraSoundDataset(data.Dataset):
                        datetime.datetime.now().microsecond)
 
         # load the images
-        input = np.array([cv2.cvtColor(
-            self.images[index, runner, :, :, :], cv2.COLOR_BGR2GRAY) for runner in range(2)])
+        input = self.images[index]
         target = np.uint8(self.labels[index])
 
         # handle exceptions

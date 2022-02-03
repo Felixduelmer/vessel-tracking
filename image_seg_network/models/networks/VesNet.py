@@ -189,10 +189,9 @@ class VesNet(nn.Module):
 
     def forward(self, input, hidden):
 
-        if hidden is None or self.bs != input.size(0):
-            self.bs = input.size(0)
-            hidden = self._init_hidden(self.bs, self.bptt_step, input.size(3))
-        self.bs = input.size(0)
+        bs = int(input.size(0)/self.bptt_step)
+        if hidden is None:
+            hidden = self._init_hidden(bs, input.size(3))
         # encoding path
         resImagePrep = self.imagePrep(input)
 
@@ -207,14 +206,14 @@ class VesNet(nn.Module):
 
         resEncoder4 = self.encoder4(resPool3)
 
-        resEncoder4 = pad_sequence(
-            list(resEncoder4.split(self.bptt_step)), batch_first=True)
-        resEncoder3 = pad_sequence(
-            list(resEncoder3.split(self.bptt_step)), batch_first=True)
-        resEncoder2 = pad_sequence(
-            list(resEncoder2.split(self.bptt_step)), batch_first=True)
-        resEncoder1 = pad_sequence(
-            list(resEncoder1.split(self.bptt_step)), batch_first=True)
+        resEncoder4 = resEncoder4.reshape(
+            bs, self.bptt_step, *resEncoder4.shape[1:])
+        resEncoder3 = resEncoder3.reshape(
+            bs, self.bptt_step, *resEncoder3.shape[1:])
+        resEncoder2 = resEncoder2.reshape(
+            bs, self.bptt_step, *resEncoder2.shape[1:])
+        resEncoder1 = resEncoder1.reshape(
+            bs, self.bptt_step, *resEncoder1.shape[1:])
 
         # intermediate Steps
         # temporal attention units
@@ -225,13 +224,13 @@ class VesNet(nn.Module):
         resConvGru1, hidden[0] = self.convGru1(resEncoder1, hidden[0])
 
         resConvGru4 = resConvGru4.reshape(
-            resConvGru4.size(0) * resConvGru4.size(1), *resConvGru4.shape[2:])[:self.bs]
+            bs*self.bptt_step, *resConvGru4.shape[2:])
         resConvGru3 = resConvGru3.reshape(
-            resConvGru3.size(0) * resConvGru3.size(1), *resConvGru3.shape[2:])[:self.bs]
+            bs*self.bptt_step, *resConvGru3.shape[2:])
         resConvGru2 = resConvGru2.reshape(
-            resConvGru2.size(0) * resConvGru2.size(1), *resConvGru2.shape[2:])[:self.bs]
+            bs*self.bptt_step, *resConvGru2.shape[2:])
         resConvGru1 = resConvGru1.reshape(
-            resConvGru1.size(0) * resConvGru1.size(1), *resConvGru1.shape[2:])[:self.bs]
+            bs*self.bptt_step, *resConvGru1.shape[2:])
 
         # decoder
         resSpatialChAtt3 = self.spatialChannelAttention3(
@@ -257,12 +256,12 @@ class VesNet(nn.Module):
 
         return log_p
 
-    def _init_hidden(self, batch_size, tbtt, input_size):
+    def _init_hidden(self, batch_size, input_size):
         hidden_states = []
         for i, filter in enumerate(self.filters):
             # number of hidden layers comes up first
             hidden_states.append(Variable(torch.zeros(
-                1, np.int(np.ceil(batch_size/tbtt)), filter, np.int(input_size/(2**i)), np.int(input_size/(2**i)))).to(self.device))
+                1, batch_size, filter, np.int(input_size/(2**i)), np.int(input_size/(2**i)))).to(self.device))
         return hidden_states
 
 

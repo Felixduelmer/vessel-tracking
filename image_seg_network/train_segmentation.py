@@ -1,4 +1,5 @@
 import numpy
+from torch import sub
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -50,11 +51,11 @@ def train(arguments):
                             preload_data=train_opts.preloadData)
     # TODO:  set number of workers up again
     train_loader = DataLoader(
-        dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=False)
+        dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)
     valid_loader = DataLoader(dataset=valid_dataset, num_workers=0,
-                              batch_size=train_opts.batchSize, shuffle=False)
+                              batch_size=train_opts.batchSize, shuffle=True)
     test_loader = DataLoader(dataset=test_dataset,  num_workers=0,
-                             batch_size=train_opts.batchSize, shuffle=False)
+                             batch_size=train_opts.batchSize, shuffle=True)
 
     # Visualisation Parameters
     visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
@@ -68,31 +69,45 @@ def train(arguments):
         # Training Iterations
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
-            model.set_input(images, labels)
-            model.optimize_parameters()
-            # model.optimize_parameters_accumulate_grd(epoch_iter)
+            print(images.shape, labels.shape)
+            for i in range(4):
+                sub_images = images[:, i:i+4, :, :,
+                                    :].reshape(train_opts.batchSize*4, *images.shape[2:])
+                sub_labels = labels[:, i:i+4, :, :,
+                                    :].reshape(train_opts.batchSize*4, *labels.shape[2:])
 
-            # Error visualisation
-            errors = model.get_current_errors()
-            error_logger.update(errors, split='train')
+                model.set_input(sub_images, sub_labels)
+                model.optimize_parameters()
+                # model.optimize_parameters_accumulate_grd(epoch_iter)
+
+                # Error visualisation
+                errors = model.get_current_errors()
+                error_logger.update(errors, split='train')
 
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
 
                 # Make a forward pass with the model
-                model.set_input(images, labels)
-                model.validate()
+                print(images.shape, labels.shape)
+                for i in range(4):
+                    sub_images = images[:, i:i+4, :, :,
+                                        :].reshape(train_opts.batchSize*4, *images.shape[2:])
+                    sub_labels = labels[:, i:i+4, :, :,
+                                        :].reshape(train_opts.batchSize*4, *labels.shape[2:])
 
-                # Error visualisation
-                errors = model.get_current_errors()
-                stats = model.get_segmentation_stats()
-                error_logger.update({**errors, **stats}, split=split)
+                    model.set_input(sub_images, sub_labels)
+                    model.validate()
 
-                # Visualise predictions
-                visuals = model.get_current_visuals(labels)
-                visualizer.display_current_results(
-                    visuals, epoch=epoch, save_result=False)
+                    # Error visualisation
+                    errors = model.get_current_errors()
+                    stats = model.get_segmentation_stats()
+                    error_logger.update({**errors, **stats}, split=split)
+
+                    # Visualise predictions
+                    visuals = model.get_current_visuals(sub_labels)
+                    visualizer.display_current_results(
+                        visuals, epoch=epoch, save_result=False)
 
         # Update the plots
         for split in ['train', 'validation', 'test']:
