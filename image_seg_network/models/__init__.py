@@ -19,6 +19,7 @@ class ModelOpts:
         self.criterion = 'cross_entropy'
         self.type = 'seg'
         self.has_hidden = False
+        self.bptt_step = 4
 
         # Attention
         self.nonlocal_mode = 'concatenation'
@@ -42,6 +43,8 @@ class ModelOpts:
 
         if(hasattr(opts, 'has_hidden')):
             self.has_hidden = opts.has_hidden
+        if(hasattr(opts, 'bptt_step')):
+            self.bptt_step = opts.bptt_step
         if hasattr(opts, 'type'):
             self.type = opts.type
         if hasattr(opts, 'l2_reg_weight'):

@@ -132,7 +132,7 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, in_channels=1, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
+    def __init__(self, bptt_step, in_channels=1, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
         self.bptt_step = bptt_step
@@ -191,7 +191,7 @@ class VesNet(nn.Module):
 
         if hidden is None or self.bs != input.size(0):
             self.bs = input.size(0)
-            hidden = self._init_hidden(self.bs, bptt, input.size(3))
+            hidden = self._init_hidden(self.bs, self.bptt_step, input.size(3))
         self.bs = input.size(0)
         # encoding path
         resImagePrep = self.imagePrep(input)

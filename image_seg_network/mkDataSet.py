@@ -10,10 +10,10 @@ def main():
     images = images_h5['Zhongliang-01'][:].transpose(
         (0, 2, 3, 1))
     labels_h5 = h5py.File('/home/robotics-verse/projects/felix/DataSet/felix_data/Zhongliang/labels.h5', 'r')
-    cropped_labels = labels_h5['Images'][:, :, 121:854,
-                                         472:988].transpose((0, 2, 3, 1))
-    cropped_bmode_images = images[:, 121:854, 472:988, :]
-    cropped_doppler_images = images[:, 121:854, 1004:1520, :]
+    cropped_labels = labels_h5['Images'][:, :, 136:854,
+                                         472:973].transpose((0, 2, 3, 1))
+    cropped_bmode_images = images[:, 136:854, 472:973, :]
+    cropped_doppler_images = images[:, 136:854, 1004:1505, :]
 
     def resizer(img): return cv2.resize(
         img, (320, 320))
@@ -24,22 +24,15 @@ def main():
     label_array = np.array([resizer(xi)
                             for xi in cropped_labels])
 
-    # define range of blue color in HSV
-    lower_blue = np.array([110, 50, 50])
-    upper_blue = np.array([130, 255, 255])
-
     for counter, image in enumerate(resized_doppler_images):
         hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         # Threshold the HSV image to get only blue colors
-        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        red_mask_1 = cv2.inRange(
-            hsv, np.array([0, 60, 20]), np.array([10, 255, 255]))
-        red_mask_2 = cv2.inRange(
-            hsv, np.array([160, 60, 20]), np.array([180, 255, 255]))
+        mask = cv2.inRange(
+            hsv, np.array([0, 100, 20]), np.array([180, 255, 255]))
         # Bitwise-AND mask and original image
         res = cv2.bitwise_and(
-            image, image, mask=blue_mask + red_mask_1 + red_mask_2)
-        resized_doppler_images[counter] = cv2.cvtColor(res, cv2.COLOR_BGR2RGB)
+            image, image, mask=mask)
+        resized_doppler_images[counter] = res
 
     image_array = np.concatenate(
         [resized_bmode_images[:, None, :, :, :], resized_doppler_images[:, None, :, :, :]], axis=1)

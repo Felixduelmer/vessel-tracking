@@ -5,7 +5,7 @@
         "save_epoch_freq": 10,
         "lr_policy": "step",
         "lr_decay_iters": 250,
-        "batchSize": 1,
+        "batchSize": 50,
         "preloadData": true
     },
     "visualisation": {
@@ -16,14 +16,14 @@
         "display_single_pane_ncols": 0
     },
     "data_path": {
-        "us": "/home/felix/projects/ma/data/h5_datasets/ultrasound.h5"
+        "us": "/home/robotics-verse/projects/felix/DataSet/h5_datasets/ultrasound.h5"
     },
     "model": {
         "type": "seg",
-        "continue_train": false,
+        "continue_train": true,
         "which_epoch": -1,
         "model_type": "unet",
-        "division_factor": 1,
+        "division_factor": 16,
         "input_nc": 1,
         "lr_rate": 1e-4,
         "l2_reg_weight": 1e-6,
@@ -33,7 +33,7 @@
         ],
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "experiment_unet",
+        "experiment_name": "experiment_unet_solo_bmode_continue_train",
         "criterion": "binary_dice_loss"
     }
 }
