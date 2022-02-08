@@ -36,7 +36,7 @@ def get_criterion(opts):
         elif 'classifier' in opts.type:
             criterion = CrossEntropyLoss()
     elif opts.criterion == 'binary_dice_loss':
-        criterion = BCEWithLogitsLoss(pos_weight=torch.tensor(30))#BinaryDiceLoss()
+        criterion = BCEWithLogitsLoss(pos_weight=torch.tensor(35))#BinaryDiceLoss()
     elif opts.criterion == 'dice_loss':
         criterion = SoftDiceLoss(opts.output_nc)
     elif opts.criterion == 'dice_loss_pancreas_only':

@@ -63,6 +63,9 @@ class FeedForwardSegmentation(BaseModel):
         for optimizer in self.optimizers:
             self.schedulers.append(get_scheduler(optimizer, train_opt))
             print('Scheduler is added for optimiser {0}'.format(optimizer))
+    
+    def init_hidden(self):
+        self.hidden = None
 
     def set_input(self, *inputs):
         # self.input.resize_(inputs[0].size()).copy_(inputs[0])

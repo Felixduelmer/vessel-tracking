@@ -19,7 +19,7 @@ class ModelOpts:
         self.criterion = 'cross_entropy'
         self.type = 'seg'
         self.has_hidden = False
-        self.bptt_step = 4
+        self.bptt_step = 2
 
         # Attention
         self.nonlocal_mode = 'concatenation'

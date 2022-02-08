@@ -69,12 +69,13 @@ def train(arguments):
         # Training Iterations
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
+            model.init_hidden()
             print(images.shape, labels.shape)
-            for i in range(4):
-                sub_images = images[:, i:i+4, :, :,
-                                    :].reshape(train_opts.batchSize*4, *images.shape[2:])
-                sub_labels = labels[:, i:i+4, :, :,
-                                    :].reshape(train_opts.batchSize*4, *labels.shape[2:])
+            for i in range(18):
+                sub_images = images[:, i:i+2 :, :,
+                                    :].reshape(images.shape[0]*2, *images.shape[2:])
+                sub_labels = labels[:, i:i+2, :, :,
+                                    :].reshape(labels.shape[0]*2, *labels.shape[2:])
 
                 model.set_input(sub_images, sub_labels)
                 model.optimize_parameters()
@@ -87,14 +88,14 @@ def train(arguments):
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
-
-                # Make a forward pass with the model
+                model.init_hidden()
                 print(images.shape, labels.shape)
-                for i in range(4):
-                    sub_images = images[:, i:i+4, :, :,
-                                        :].reshape(train_opts.batchSize*4, *images.shape[2:])
-                    sub_labels = labels[:, i:i+4, :, :,
-                                        :].reshape(train_opts.batchSize*4, *labels.shape[2:])
+                # Make a forward pass with the model
+                for i in range(18):
+                    sub_images = images[:, i:i+2 :, :,
+                                    :].reshape(images.shape[0]*2, *images.shape[2:])
+                    sub_labels = labels[:, i:i+2, :, :,
+                                    :].reshape(labels.shape[0]*2, *labels.shape[2:])
 
                     model.set_input(sub_images, sub_labels)
                     model.validate()

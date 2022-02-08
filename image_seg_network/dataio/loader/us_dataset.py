@@ -1,11 +1,8 @@
 import cv2
-import torch
 import torch.utils.data as data
 import h5py
 import numpy as np
 import datetime
-from skimage import color, io
-from matplotlib import pyplot as plt
 
 from os import listdir
 from os.path import join
@@ -31,8 +28,11 @@ class UltraSoundDataset(data.Dataset):
         assert len(self.images) == len(self.labels)
 
         # reduce image to gray scale
-        self.images = np.array([cv2.cvtColor(
-            self.images[i, j, :, :, :], cv2.COLOR_BGR2GRAY) for j in range(self.images.shape[1]) for i in range(self.images.shape[0])]).reshape(*self.images.shape[:4])
+        grayimages = []
+        for idx in range(len(self.images)):
+            grayimages.append(np.array([cv2.cvtColor(
+            self.images[idx, j, :, :, :], cv2.COLOR_BGR2GRAY) for j in range(2)]))
+        self.images = np.array(grayimages)
         # prepare sequences
         if len(self.images) % self.seq_len != 0:
             if split == 'train':
@@ -41,7 +41,6 @@ class UltraSoundDataset(data.Dataset):
                 self.labels = np.concatenate(
                     (self.labels, np.zeros((self.seq_len - (len(self.labels) % self.seq_len), *self.labels.shape[1:]))))
             else:
-                print((len(self.images)-int(len(self.images)/self.seq_len)))
                 self.images = self.images[:(
                     len(self.images)-(len(self.images) % self.seq_len))]
                 self.labels = self.labels[:(
@@ -52,7 +51,6 @@ class UltraSoundDataset(data.Dataset):
         self.labels = self.labels.reshape(int(np.ceil(len(self.labels)/self.seq_len)),
                                           self.seq_len, *self.labels.shape[1:])
 
-        print(self.images.shape, self.labels.shape)
 
         # print(class_weight)
         assert len(self.images) == len(self.labels)
