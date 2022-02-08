@@ -29,7 +29,7 @@ class FeedForwardSegmentation(BaseModel):
 
         # load/define networks
         self.net = get_network(opts.model_type, in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
-                               attention_dsample=opts.attention_dsample)
+                               attention_dsample=opts.attention_dsample, bptt_step=opts.bptt_step)
         if self.use_cuda:
             self.net = self.net.cuda()
 
@@ -63,7 +63,7 @@ class FeedForwardSegmentation(BaseModel):
         for optimizer in self.optimizers:
             self.schedulers.append(get_scheduler(optimizer, train_opt))
             print('Scheduler is added for optimiser {0}'.format(optimizer))
-    
+
     def init_hidden(self):
         self.hidden = None
 

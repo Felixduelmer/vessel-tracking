@@ -10,14 +10,14 @@ from .utils import check_exceptions
 
 
 class UltraSoundDataset(data.Dataset):
-    def __init__(self, root_path, split, transform=None, preload_data=False):
+    def __init__(self, root_path, seq_len, split, transform=None, preload_data=False):
         super(UltraSoundDataset, self).__init__()
 
         f = h5py.File(root_path, 'r')
 
         self.images = f['x_'+split]
 
-        self.seq_len = 20
+        self.seq_len = seq_len
 
         if preload_data:
             self.images = np.array(self.images[:])
@@ -31,7 +31,7 @@ class UltraSoundDataset(data.Dataset):
         grayimages = []
         for idx in range(len(self.images)):
             grayimages.append(np.array([cv2.cvtColor(
-            self.images[idx, j, :, :, :], cv2.COLOR_BGR2GRAY) for j in range(2)]))
+                self.images[idx, j, :, :, :], cv2.COLOR_BGR2GRAY) for j in range(2)]))
         self.images = np.array(grayimages)
         # prepare sequences
         if len(self.images) % self.seq_len != 0:
@@ -50,7 +50,6 @@ class UltraSoundDataset(data.Dataset):
                                           self.seq_len, *self.images.shape[1:])
         self.labels = self.labels.reshape(int(np.ceil(len(self.labels)/self.seq_len)),
                                           self.seq_len, *self.labels.shape[1:])
-
 
         # print(class_weight)
         assert len(self.images) == len(self.labels)

@@ -26,6 +26,10 @@ def train(arguments):
     # Architecture type
     arch_type = train_opts.arch_type
 
+    # bptt
+    bptt_step = json_opts.model.bptt_step
+    assert bptt_step > 1
+
     # Setup Dataset and Augmentation
     ds_class = get_dataset(arch_type)
     ds_path = get_dataset_path(arch_type, json_opts.data_path)
@@ -41,13 +45,13 @@ def train(arguments):
 
     # Setup Data Loader
     # transform=ds_transform['train'],
-    train_dataset = ds_class(ds_path, split='train',
+    train_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='train',
                              preload_data=train_opts.preloadData)
     # transform=ds_transform['valid']
-    valid_dataset = ds_class(ds_path, split='valid',
+    valid_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='valid',
                              preload_data=train_opts.preloadData)
     # transform=ds_transform['valid']
-    test_dataset = ds_class(ds_path, split='test',
+    test_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='test',
                             preload_data=train_opts.preloadData)
     # TODO:  set number of workers up again
     train_loader = DataLoader(
@@ -70,12 +74,11 @@ def train(arguments):
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
             model.init_hidden()
-            print(images.shape, labels.shape)
-            for i in range(18):
-                sub_images = images[:, i:i+2 :, :,
-                                    :].reshape(images.shape[0]*2, *images.shape[2:])
-                sub_labels = labels[:, i:i+2, :, :,
-                                    :].reshape(labels.shape[0]*2, *labels.shape[2:])
+            for i in range(train_opts.seq_len-bptt_step):
+                sub_images = images[:, i:i+bptt_step:, :,
+                                    :].reshape(images.shape[0]*bptt_step, *images.shape[2:])
+                sub_labels = labels[:, i:i+bptt_step, :, :,
+                                    :].reshape(labels.shape[0]*bptt_step, *labels.shape[2:])
 
                 model.set_input(sub_images, sub_labels)
                 model.optimize_parameters()
@@ -89,13 +92,12 @@ def train(arguments):
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
                 model.init_hidden()
-                print(images.shape, labels.shape)
                 # Make a forward pass with the model
-                for i in range(18):
-                    sub_images = images[:, i:i+2 :, :,
-                                    :].reshape(images.shape[0]*2, *images.shape[2:])
-                    sub_labels = labels[:, i:i+2, :, :,
-                                    :].reshape(labels.shape[0]*2, *labels.shape[2:])
+                for i in range(train_opts.seq_len-bptt_step):
+                    sub_images = images[:, i:i+bptt_step:, :,
+                                        :].reshape(images.shape[0]*bptt_step, *images.shape[2:])
+                    sub_labels = labels[:, i:i+bptt_step, :, :,
+                                        :].reshape(labels.shape[0]*bptt_step, *labels.shape[2:])
 
                     model.set_input(sub_images, sub_labels)
                     model.validate()

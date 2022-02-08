@@ -132,7 +132,7 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, bptt_step, in_channels=1, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
+    def __init__(self, bptt_step, in_channels=2, out_channels=1, feature_scale=16, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
         self.bptt_step = bptt_step
