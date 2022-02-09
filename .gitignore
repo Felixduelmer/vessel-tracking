@@ -18,3 +18,5 @@ image_seg_network/checkpoints/experiment_unet_solo_bmode_continue_train/
 *.png
 
 image_seg_network/play.py
+
+image_seg_network/utils/play.py

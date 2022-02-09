@@ -1,6 +1,0 @@
-Propositions for optimisations
-
-Raft network
-flownet 2 
-
-spade blöcke
