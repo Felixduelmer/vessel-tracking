@@ -1,0 +1,31 @@
+---
+version: 1
+
+kind: experiment
+
+framework: pytorch
+
+tags: [examples]
+ 
+build:
+  image: pytorch/pytorch:1.7.0-cuda11.0-cudnn8-runtime
+  build_steps:
+    - pip install -e .
+  env_vars:
+    - ['TORCH_HOME', "/data/PytorchModelZoo"]
+
+environment:
+  resources:
+    cpu:
+      requests: 3
+      limits: 3
+    memory:
+      requests: 1024
+      limits: 4098
+    gpu:
+      requests: 1
+      limits: 1
+
+
+run:
+  cmd: python -u train_segmentation.py  --c= "configs/config_vesnet.json"

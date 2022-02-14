@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 
 from dataio.loader import get_dataset, get_dataset_path
-#from dataio.transformation import get_dataset_transformation
+from dataio.transformation import get_dataset_transformation
 from utils.util import json_file_to_pyobj
 from utils.visualiser import Visualiser
 from utils.error_logger import ErrorLogger
@@ -33,7 +33,7 @@ def train(arguments):
     # Setup Dataset and Augmentation
     ds_class = get_dataset(arch_type)
     ds_path = get_dataset_path(arch_type, json_opts.data_path)
-    #ds_transform = get_dataset_transformation(arch_type, opts=json_opts.augmentation)
+    ds_transform = get_dataset_transformation(arch_type, opts=json_opts.augmentation)
 
     # Setup the NN Model
     model = get_model(json_opts.model)
@@ -44,15 +44,12 @@ def train(arguments):
         exit()
 
     # Setup Data Loader
-    # transform=ds_transform['train'],
     train_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='train',
-                             preload_data=train_opts.preloadData)
-    # transform=ds_transform['valid']
+                             preload_data=train_opts.preloadData, transform=ds_transform['train'])
     valid_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='valid',
-                             preload_data=train_opts.preloadData)
-    # transform=ds_transform['valid']
+                             preload_data=train_opts.preloadData, transform=ds_transform['valid'])
     test_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='test',
-                            preload_data=train_opts.preloadData)
+                            preload_data=train_opts.preloadData, transform=ds_transform['valid'])
     # TODO:  set number of workers up again
     train_loader = DataLoader(
         dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)

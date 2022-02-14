@@ -1,4 +1,5 @@
 import cv2
+import torch
 import torch.utils.data as data
 import h5py
 import numpy as np
@@ -15,7 +16,7 @@ class UltraSoundDataset(data.Dataset):
 
         f = h5py.File(root_path, 'r')
 
-        self.images = f['x_'+split]
+        self.images = f['x_' + split]
 
         self.seq_len = seq_len
 
@@ -23,7 +24,7 @@ class UltraSoundDataset(data.Dataset):
             self.images = np.array(self.images[:])
 
         self.labels = np.expand_dims(
-            np.array(f['y_'+split][:], dtype=np.int64), axis=1)  # [:1000]
+            np.array(f['y_' + split][:], dtype=np.uint8), axis=1)  # [:1000]
 
         assert len(self.images) == len(self.labels)
 
@@ -42,13 +43,13 @@ class UltraSoundDataset(data.Dataset):
                     (self.labels, np.zeros((self.seq_len - (len(self.labels) % self.seq_len), *self.labels.shape[1:]))))
             else:
                 self.images = self.images[:(
-                    len(self.images)-(len(self.images) % self.seq_len))]
+                        len(self.images) - (len(self.images) % self.seq_len))]
                 self.labels = self.labels[:(
-                    len(self.labels)-(len(self.labels) % self.seq_len))]
+                        len(self.labels) - (len(self.labels) % self.seq_len))]
 
-        self.images = self.images.reshape(int(np.ceil(len(self.images)/self.seq_len)),
+        self.images = self.images.reshape(int(np.ceil(len(self.images) / self.seq_len)),
                                           self.seq_len, *self.images.shape[1:])
-        self.labels = self.labels.reshape(int(np.ceil(len(self.labels)/self.seq_len)),
+        self.labels = self.labels.reshape(int(np.ceil(len(self.labels) / self.seq_len)),
                                           self.seq_len, *self.labels.shape[1:])
 
         # print(class_weight)
@@ -67,12 +68,21 @@ class UltraSoundDataset(data.Dataset):
 
         # load the images
         input = self.images[index]
-        target = np.uint8(self.labels[index])
+        target = self.labels[index]
 
         # handle exceptions
-        #check_exceptions(input, target)
+        # check_exceptions(input, target)
+        # random number generator seed is saved to have some transformation for all images in one sequence
+        # https://github.com/pytorch/vision/issues/9
         if self.transform:
-            input = self.transform(input)
+            state = torch.get_rng_state()
+            for i in range(len(input)):
+                torch.set_rng_state(state)
+                input[i][0] = self.transform(torch.from_numpy(input[i, [0]]))
+                torch.set_rng_state(state)
+                input[i][1] = self.transform(torch.from_numpy(input[i, [1]]))
+                torch.set_rng_state(state)
+                target[i] = self.transform(torch.from_numpy(target[i]))
 
         # print(input.shape, torch.from_numpy(np.array([target])))
         # print("target", np.int64(target))
@@ -87,4 +97,5 @@ if __name__ == '__main__':
         '/home/felix/projects/ma/data/h5_datasets/ultrasound.h5')
 
     from torch.utils.data import DataLoader, sampler
+
     ds = DataLoader(dataset=dataset, num_workers=1, batch_size=2)

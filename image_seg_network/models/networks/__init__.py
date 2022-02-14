@@ -10,7 +10,7 @@ def get_network(name, in_channels=2, feature_scale=4,
     if name in ['unet']:
         model = model()
     elif name in ['vesnet']:
-        model = model(bptt_step=bptt_step)
+        model = model(bptt_step=bptt_step, in_channels = in_channels)
     else:
         raise 'Model {} not available'.format(name)
 
