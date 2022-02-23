@@ -7,6 +7,8 @@ from models.modules.cbam import ChannelGate
 from torch.autograd import Variable
 import numpy as np
 
+from models.networks_other import init_weights
+
 '''Define the number of flters you want to normalize to'''
 
 
@@ -186,6 +188,12 @@ class VesNet(nn.Module):
         self.decoder1 = Decoder(self.filters[0])
 
         self.conv_out = nn.Conv2d(self.filters[0], 1, 1)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init_weights(m, init_type='kaiming')
+            elif isinstance(m, nn.BatchNorm2d):
+                init_weights(m, init_type='kaiming')
 
     def forward(self, input, hidden):
 

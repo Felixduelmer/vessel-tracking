@@ -8,24 +8,26 @@ framework: pytorch
 tags: [examples]
  
 build:
-  image: pytorch/pytorch:1.7.0-cuda11.0-cudnn8-runtime
+  image: pytorch/pytorch:1.9.1-cuda11.1-cudnn8-runtime
   build_steps:
-    - pip install -e .
+    - apt update
+    - apt install -y python3-opencv
+    - pip install -r requirements.txt
   env_vars:
     - ['TORCH_HOME', "/data/PytorchModelZoo"]
 
 environment:
   resources:
     cpu:
-      requests: 3
-      limits: 3
+      requests: 4
+      limits: 4
     memory:
-      requests: 1024
-      limits: 4098
+      requests: 6144
+      limits: 12288
     gpu:
       requests: 1
       limits: 1
 
 
 run:
-  cmd: python -u train_segmentation.py  --c= "configs/config_vesnet.json"
+  cmd: python -u train_segmentation.py  -c configs/config_vesnet.json

@@ -98,7 +98,7 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(
+        phi_g = F.interpolate(
             self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
         f = F.relu(theta_x + phi_g, inplace=True)
 
@@ -106,7 +106,7 @@ class _GridAttentionBlockND(nn.Module):
         sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(
+        sigm_psi_f = F.interpolate(
             sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
@@ -125,7 +125,7 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(
+        phi_g = F.interpolate(
             self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
         f = F.softplus(theta_x + phi_g)
 
@@ -133,7 +133,7 @@ class _GridAttentionBlockND(nn.Module):
         sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(
+        sigm_psi_f = F.interpolate(
             sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
@@ -152,7 +152,7 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(
+        phi_g = F.intepolate(
             self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
         f = F.relu(theta_x + phi_g, inplace=True)
 
@@ -162,7 +162,7 @@ class _GridAttentionBlockND(nn.Module):
             batch_size, 1, *theta_x.size()[2:])
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(
+        sigm_psi_f = F.interpolate(
             sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
@@ -323,7 +323,7 @@ class _GridAttentionBlockND_TORR(nn.Module):
         theta_x_size = theta_x.size()
 
         #  nl(theta.x + phi.g + bias) -> f = (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(
+        phi_g = F.interpolate(
             self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
 
         f = theta_x + phi_g
@@ -370,7 +370,7 @@ class _GridAttentionBlockND_TORR(nn.Module):
             raise NotImplementedError
 
         # sigm_psi_f is attention map! upsample the attentions and multiply
-        sigm_psi_f = F.upsample(
+        sigm_psi_f = F.interpolate(
             sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)

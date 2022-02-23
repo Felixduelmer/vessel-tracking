@@ -40,7 +40,11 @@ class Transformations:
                                       ts.RandomAffine(degrees=self.rotate_val,
                                                       translate=self.shift_val,
                                                       scale=self.scale_val,
-                                                      interpolation=ts.InterpolationMode.BILINEAR),
+                                                      fill=0,
+                                                      ),
+                                      # speckle noise
+                                      # gaussian noise
+                                      # black and white noise
                                       ])
 
         valid_transform = ts.Compose([ts.ConvertImageDtype(dtype=torch.float64),

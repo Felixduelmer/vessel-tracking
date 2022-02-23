@@ -2,7 +2,8 @@ import numpy
 from torch import sub
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+from polyaxon_client.tracking import Experiment, get_data_paths
+import os
 
 from dataio.loader import get_dataset, get_dataset_path
 from dataio.transformation import get_dataset_transformation
@@ -14,7 +15,6 @@ from models import get_model
 
 
 def train(arguments):
-
     # Parse input arguments
     json_filename = arguments.config
     network_debug = arguments.debug
@@ -23,6 +23,19 @@ def train(arguments):
     json_opts = json_file_to_pyobj(json_filename)
     train_opts = json_opts.training
 
+    # polyaxon specific
+    # if this throws an error in a normal env just set POLYAXON_NO_OP to true as an env variable
+    polyaxon_input_path = None
+    polyaxon_output_path = None
+    try:
+        data_paths = get_data_paths()
+        dataset = "/vessel_felix/ultrasound.h5"
+        training_data_path = data_paths['data1'] + dataset
+        polyaxon_input_path = training_data_path
+        output_path = os.environ['POLYAXON_RUN_OUTPUTS_PATH']
+        polyaxon_output_path = output_path + '/felixduelmer'
+    except:
+        print("This experiment/job is not managed by polyaxon")
     # Architecture type
     arch_type = train_opts.arch_type
 
@@ -32,11 +45,11 @@ def train(arguments):
 
     # Setup Dataset and Augmentation
     ds_class = get_dataset(arch_type)
-    ds_path = get_dataset_path(arch_type, json_opts.data_path)
+    ds_path = get_dataset_path(arch_type, json_opts.data_path) if polyaxon_input_path is None else polyaxon_input_path
     ds_transform = get_dataset_transformation(arch_type, opts=json_opts.augmentation)
 
     # Setup the NN Model
-    model = get_model(json_opts.model)
+    model = get_model(json_opts.model, polyaxon_output_path)
     if network_debug:
         print('# of pars: ', model.get_number_parameters())
         print('fp time: {0:.3f} sec\tbp time: {1:.3f} sec per sample'.format(
@@ -52,14 +65,14 @@ def train(arguments):
                             preload_data=train_opts.preloadData, transform=ds_transform['valid'])
     # TODO:  set number of workers up again
     train_loader = DataLoader(
-        dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)
-    valid_loader = DataLoader(dataset=valid_dataset, num_workers=0,
+        dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=True)
+    valid_loader = DataLoader(dataset=valid_dataset, num_workers=4,
                               batch_size=train_opts.batchSize, shuffle=True)
-    test_loader = DataLoader(dataset=test_dataset,  num_workers=0,
+    test_loader = DataLoader(dataset=test_dataset, num_workers=4,
                              batch_size=train_opts.batchSize, shuffle=True)
 
     # Visualisation Parameters
-    visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
+    # visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
     error_logger = ErrorLogger()
 
     # Training Function
@@ -71,11 +84,11 @@ def train(arguments):
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
             model.init_hidden()
-            for i in range(train_opts.seq_len-bptt_step):
-                sub_images = images[:, i:i+bptt_step:, :,
-                                    :].reshape(images.shape[0]*bptt_step, *images.shape[2:])
-                sub_labels = labels[:, i:i+bptt_step, :, :,
-                                    :].reshape(labels.shape[0]*bptt_step, *labels.shape[2:])
+            for i in range(train_opts.seq_len - bptt_step):
+                sub_images = images[:, i:i + bptt_step:, :,
+                             :].reshape(images.shape[0] * bptt_step, *images.shape[2:])
+                sub_labels = labels[:, i:i + bptt_step, :, :,
+                             :].reshape(labels.shape[0] * bptt_step, *labels.shape[2:])
 
                 model.set_input(sub_images, sub_labels)
                 model.optimize_parameters()
@@ -90,11 +103,11 @@ def train(arguments):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
                 model.init_hidden()
                 # Make a forward pass with the model
-                for i in range(train_opts.seq_len-bptt_step):
-                    sub_images = images[:, i:i+bptt_step:, :,
-                                        :].reshape(images.shape[0]*bptt_step, *images.shape[2:])
-                    sub_labels = labels[:, i:i+bptt_step, :, :,
-                                        :].reshape(labels.shape[0]*bptt_step, *labels.shape[2:])
+                for i in range(train_opts.seq_len - bptt_step):
+                    sub_images = images[:, i:i + bptt_step:, :,
+                                 :].reshape(images.shape[0] * bptt_step, *images.shape[2:])
+                    sub_labels = labels[:, i:i + bptt_step, :, :,
+                                 :].reshape(labels.shape[0] * bptt_step, *labels.shape[2:])
 
                     model.set_input(sub_images, sub_labels)
                     model.validate()
@@ -106,15 +119,16 @@ def train(arguments):
 
                     # Visualise predictions
                     visuals = model.get_current_visuals(sub_labels)
-                    visualizer.display_current_results(
-                        visuals, epoch=epoch, save_result=False)
+                    # visualizer.display_current_results(
+                    #     visuals, epoch=epoch, save_result=False)
 
         # Update the plots
         for split in ['train', 'validation', 'test']:
-            visualizer.plot_current_errors(
-                epoch, error_logger.get_errors(split), split_name=split)
-            visualizer.print_current_errors(
-                epoch, error_logger.get_errors(split), split_name=split)
+            from polyaxon_client.tracking import Experiment
+            # visualizer.plot_current_errors(
+            #     epoch, error_logger.get_errors(split), split_name=split)
+            # visualizer.print_current_errors(
+            #     epoch, error_logger.get_errors(split), split_name=split)
         error_logger.reset()
 
         # Save the model parameters
@@ -131,9 +145,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CNN Seg Training Function')
 
     parser.add_argument(
-        '-c', '--config',  help='training config file', required=True)
+        '-c', '--config', help='training config file', required=True)
     parser.add_argument(
-        '-d', '--debug',   help='returns number of parameters and bp/fp runtime', action='store_true')
+        '-d', '--debug', help='returns number of parameters and bp/fp runtime', action='store_true')
     args = parser.parse_args()
 
     train(args)

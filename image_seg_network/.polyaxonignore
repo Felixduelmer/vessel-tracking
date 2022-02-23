@@ -7,6 +7,8 @@ lib64
 parts
 sdist
 var
+checkpoints/
+venv/
 *.pyc
 *.swp
 .DS_Store

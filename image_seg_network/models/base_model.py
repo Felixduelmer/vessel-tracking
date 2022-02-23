@@ -4,6 +4,7 @@ import torch
 from utils.util import mkdir
 from .networks_other import get_n_parameters
 
+
 class BaseModel():
     def __init__(self):
         self.input = None
