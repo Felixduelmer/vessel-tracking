@@ -1,5 +1,6 @@
 import numpy
-from torch import sub
+import numpy as np
+import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from polyaxon_client.tracking import Experiment, get_data_paths
@@ -57,22 +58,22 @@ def train(arguments):
         exit()
 
     # Setup Data Loader
-    train_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='train',
+    train_dataset = ds_class(ds_path, split='train',
                              preload_data=train_opts.preloadData, transform=ds_transform['train'])
-    valid_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='valid',
+    valid_dataset = ds_class(ds_path, split='valid',
                              preload_data=train_opts.preloadData, transform=ds_transform['valid'])
-    test_dataset = ds_class(ds_path, seq_len=train_opts.seq_len, split='test',
+    test_dataset = ds_class(ds_path, split='test',
                             preload_data=train_opts.preloadData, transform=ds_transform['valid'])
     # TODO:  set number of workers up again
     train_loader = DataLoader(
-        dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=True)
-    valid_loader = DataLoader(dataset=valid_dataset, num_workers=4,
+        dataset=train_dataset, num_workers=8, batch_size=train_opts.batchSize, shuffle=True)
+    valid_loader = DataLoader(dataset=valid_dataset, num_workers=8,
                               batch_size=train_opts.batchSize, shuffle=True)
-    test_loader = DataLoader(dataset=test_dataset, num_workers=4,
+    test_loader = DataLoader(dataset=test_dataset, num_workers=8,
                              batch_size=train_opts.batchSize, shuffle=True)
 
     # Visualisation Parameters
-    # visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
+    visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
     error_logger = ErrorLogger()
 
     # Training Function
@@ -84,7 +85,8 @@ def train(arguments):
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
             model.init_hidden()
-            for i in range(train_opts.seq_len - bptt_step):
+            for i in range(int(train_opts.seq_len / bptt_step)):
+                i *= bptt_step
                 sub_images = images[:, i:i + bptt_step:, :,
                              :].reshape(images.shape[0] * bptt_step, *images.shape[2:])
                 sub_labels = labels[:, i:i + bptt_step, :, :,
@@ -97,15 +99,25 @@ def train(arguments):
                 # Error visualisation
                 errors = model.get_current_errors()
                 error_logger.update(errors, split='train')
+            # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]),
+            #                                    labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
+            #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
+            #     model.optimize_parameters()
+            #     # model.optimize_parameters_accumulate_grd(epoch_iter)
+            #
+            #     # Error visualisation
+            #     errors = model.get_current_errors()
+            #     error_logger.update(errors, split='train')
 
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
                 model.init_hidden()
                 # Make a forward pass with the model
-                for i in range(train_opts.seq_len - bptt_step):
-                    sub_images = images[:, i:i + bptt_step:, :,
-                                 :].reshape(images.shape[0] * bptt_step, *images.shape[2:])
+                for i in range(int(train_opts.seq_len / bptt_step)):
+                    i *= bptt_step
+                    sub_images = images[:, i:i + bptt_step:, :, :].reshape(images.shape[0] * bptt_step,
+                                                                           *images.shape[2:])
                     sub_labels = labels[:, i:i + bptt_step, :, :,
                                  :].reshape(labels.shape[0] * bptt_step, *labels.shape[2:])
 
@@ -119,16 +131,28 @@ def train(arguments):
 
                     # Visualise predictions
                     visuals = model.get_current_visuals(sub_labels)
-                    # visualizer.display_current_results(
-                    #     visuals, epoch=epoch, save_result=False)
+                    visualizer.display_current_results(visuals, epoch=epoch, save_result=False)
+
+
+                # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
+                #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
+                #     model.validate()
+                #
+                #     # Error visualisation
+                #     errors = model.get_current_errors()
+                #     stats = model.get_segmentation_stats()
+                #     error_logger.update({**errors, **stats}, split=split)
+                #
+                #     # Visualise predictions
+                #     visuals = model.get_current_visuals(torch.unsqueeze(lbl, axis=0))
+                #     visualizer.display_current_results(visuals, epoch=epoch, save_result=False)
 
         # Update the plots
         for split in ['train', 'validation', 'test']:
-            from polyaxon_client.tracking import Experiment
-            # visualizer.plot_current_errors(
-            #     epoch, error_logger.get_errors(split), split_name=split)
-            # visualizer.print_current_errors(
-            #     epoch, error_logger.get_errors(split), split_name=split)
+            visualizer.plot_current_errors(
+                epoch, error_logger.get_errors(split), split_name=split)
+            visualizer.print_current_errors(
+                epoch, error_logger.get_errors(split), split_name=split)
         error_logger.reset()
 
         # Save the model parameters

@@ -47,6 +47,26 @@ class SoftDiceLoss(nn.Module):
 
         score = torch.sum(2.0 * inter / union)
         score = 1.0 - score / (float(batch_size) * float(self.n_classes))
+        return score
+
+
+# PyTorch
+class DiceLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+        # comment out if your model contains a sigmoid or equivalent activation layer
+        inputs = torch.sigmoid(inputs)
+
+        # flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+
+        intersection = (inputs * targets).sum()
+        dice = (2. * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+
+        return 1 - dice
 
 
 class BinaryDiceLoss(nn.Module):
@@ -57,7 +77,7 @@ class BinaryDiceLoss(nn.Module):
         smooth = 0.01
         batch_size = input.size(0)
 
-        input = (input>0.8).int().view(batch_size, -1)
+        input = (input > 0.8).int().view(batch_size, -1)
         target = target.view(batch_size, -1)
 
         inter = torch.sum(input * target, 1) + smooth
@@ -115,6 +135,7 @@ class One_Hot(nn.Module):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
+
     depth = 3
     batch_size = 2
     encoder = One_Hot(depth=depth).forward

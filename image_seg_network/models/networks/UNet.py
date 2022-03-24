@@ -8,7 +8,7 @@ from models.networks_other import init_weights
 
 class UNet(nn.Module):
 
-    def __init__(self, feature_scale=1, n_classes=1, is_deconv=True, in_channels=2, is_batchnorm=True):
+    def __init__(self, feature_scale=8, n_classes=1, is_deconv=True, in_channels=2, is_batchnorm=True):
         super(UNet, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels

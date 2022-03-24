@@ -20,6 +20,7 @@ class ModelOpts:
         self.type = 'seg'
         self.has_hidden = False
         self.bptt_step = 2
+        self.optim = 'sgd'
 
         # Attention
         self.nonlocal_mode = 'concatenation'
@@ -41,9 +42,9 @@ class ModelOpts:
         self.continue_train = opts.continue_train
         self.which_epoch = opts.which_epoch
 
-        if(hasattr(opts, 'has_hidden')):
+        if hasattr(opts, 'has_hidden'):
             self.has_hidden = opts.has_hidden
-        if(hasattr(opts, 'bptt_step')):
+        if hasattr(opts, 'bptt_step'):
             self.bptt_step = opts.bptt_step
         if hasattr(opts, 'type'):
             self.type = opts.type
@@ -58,6 +59,8 @@ class ModelOpts:
             self.path_pre_trained_model = opts.path_pre_trained_model
         if hasattr(opts, 'criterion'):
             self.criterion = opts.criterion
+        if hasattr(opts, "optim"):
+            self.optim = opts.optim
 
         if hasattr(opts, 'nonlocal_mode'):
             self.nonlocal_mode = opts.nonlocal_mode
