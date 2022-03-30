@@ -88,7 +88,7 @@ class FeedForwardSegmentation(BaseModel):
 
         elif split == 'test':
             if self.has_hidden:
-                self.prediction, _ = self.net(
+                self.prediction, self.hidden = self.net(
                     Variable(self.input, requires_grad=False), self.hidden)
             else:
                 self.prediction = self.net(
@@ -127,6 +127,12 @@ class FeedForwardSegmentation(BaseModel):
     def test(self):
         self.net.eval()
         self.forward(split='test')
+
+    def inference(self):
+        with torch.no_grad:
+            self.net.eval()
+            self.forward(split="test")
+            return self.pred_seg
 
     def validate(self):
         self.net.eval()

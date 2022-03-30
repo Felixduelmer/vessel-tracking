@@ -12,7 +12,7 @@ setup(name='VesselNet',
       author='Felix Duelmer',
       install_requires=[
           "numpy",
-          "torch",
+          "torch == 1.9.1",
           "matplotlib",
           "scipy",
           "torchvision",

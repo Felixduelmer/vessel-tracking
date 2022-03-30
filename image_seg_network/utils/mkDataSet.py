@@ -15,7 +15,7 @@ def main():
     seq_str = 'sequence'
 
     h5_images = ['/data1/volume1/data/felix_data/sweeps_imfusion/patient_1/us_images.h5',
-                 '/data1/volume1/data/felix_data/sweeps_imfusion/patient_2/us_images.h5',
+                 '/data1/volume1/data/felix_data/sweeps_imfusion/patient_2/0.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_3/sweep_1/0.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_3/sweep_2/0.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_4/sweep_1/0.h5',
@@ -27,10 +27,10 @@ def main():
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_7/sweep_1/0.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_7/sweep_2/0.h5',
                  ]
-    h5_images_name = ['us_images', 'us_images', 'data', '0', 'data', 'data', '0', 'data', 'data', 'data', 'data',
+    h5_images_name = ['us_images', 'data', 'data', '0', 'data', 'data', '0', 'data', 'data', 'data', 'data',
                       'data', ]
     h5_labels = ['/data1/volume1/data/felix_data/sweeps_imfusion/patient_1/labels.h5',
-                 '/data1/volume1/data/felix_data/sweeps_imfusion/patient_2/labels.h5',
+                 '/data1/volume1/data/felix_data/sweeps_imfusion/patient_2/0-labels.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_3/sweep_1/0-labels.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_3/sweep_2/0-labels.h5',
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_4/sweep_1/0-labels.h5',
@@ -43,11 +43,11 @@ def main():
                  '/data1/volume1/data/felix_data/sweeps_imfusion/patient_7/sweep_2/0-labels.h5',
                  ]
 
-    h5_labels_name = ['labels', 'labels', 'label', '0-labels', 'label', 'label', '0-labels', 'label',
+    h5_labels_name = ['labels', 'label', 'label', '0-labels', 'label', 'label', '0-labels', 'label',
                       'label', 'label', 'label', 'label', ]
 
-    h5_images_start = [0, 36, 0, 0, 0, 0, 43, 0, 55, 0, 49, 38]
-    h5_images_end = [-1, 421, -1, -1, -1, -1, 366, -1, 401, -1, 611, 361]
+    h5_images_start = [0, 0, 0, 0, 0, 0, 43, 0, 55, 0, 49, 38]
+    h5_images_end = [-1, -1, -1, -1, -1, -1, 366, -1, 401, -1, 611, 361]
 
     external_images = ['/home/robotics-verse/projects/felix/DataSet/felix_data/external_data/nmi_vasc_robot', ]
 

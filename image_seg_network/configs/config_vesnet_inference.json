@@ -1,0 +1,24 @@
+{
+  "model": {
+    "type": "seg",
+    "continue_train": false,
+    "which_epoch": -1,
+    "model_type": "vesnet",
+    "division_factor": 16,
+    "bptt_step": 5,
+    "has_hidden": true,
+    "input_nc": 2,
+    "lr_rate": 1e-3,
+    "l2_reg_weight": 1e-6,
+    "feature_scale": 4,
+    "gpu_ids": [
+      0
+    ],
+    "isTrain": false,
+    "optim": "adam",
+    "path_pre_trained_model": "/home/robotics-verse/projects/felix/vessel-tracking/image_seg_network/checkpoints/vesnet_stablized_doppler/990_net_S.pth",
+    "checkpoints_dir": "./checkpoints",
+    "experiment_name": "vesnet_stablized_doppler",
+    "criterion": "binary_dice_loss"
+  }
+}

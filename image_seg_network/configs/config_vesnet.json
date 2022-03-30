@@ -36,7 +36,7 @@
         "bptt_step": 5,
         "has_hidden": true,
         "input_nc": 2,
-        "lr_rate": 1e-4,
+        "lr_rate": 1e-3,
         "l2_reg_weight": 1e-6,
         "feature_scale": 4,
         "gpu_ids": [
