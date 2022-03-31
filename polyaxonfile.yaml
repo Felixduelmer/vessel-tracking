@@ -1,0 +1,10 @@
+---
+version: 1
+
+kind: experiment
+
+build:
+  # image: # Image name to use
+
+run:
+  # cmd: # Command to use
