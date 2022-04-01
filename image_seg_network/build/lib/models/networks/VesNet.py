@@ -134,10 +134,11 @@ class ResizeUpConvolution(nn.Module):
 
 class VesNet(nn.Module):
 
-    def __init__(self, in_channels=2, feature_scale=32, nonlocal_mode='concatenation',
+    def __init__(self, in_channels=2, out_channels=1, feature_scale=8, nonlocal_mode='concatenation',
                  attention_dsample=(2, 2, 2)):
         super(VesNet, self).__init__()
         self.in_channels = in_channels
+        self.out_channels = out_channels
         self.feature_scale = feature_scale
         self.nonlocal_mode = nonlocal_mode
         self.attention_dsample = attention_dsample
@@ -197,7 +198,7 @@ class VesNet(nn.Module):
     def forward(self, input, hidden):
 
         if hidden is None:
-            hidden = self.init_hidden(input.size(0), input.size(2))
+            hidden = self._init_hidden(input.size(0), input.size(2))
         # encoding path
         resImagePrep = self.imagePrep(input)
 
@@ -244,7 +245,7 @@ class VesNet(nn.Module):
 
         return log_p
 
-    def init_hidden(self, batch_size, input_size):
+    def _init_hidden(self, batch_size, input_size):
         hidden_states = []
         for i, filter in enumerate(self.filters):
             # number of hidden layers comes up first

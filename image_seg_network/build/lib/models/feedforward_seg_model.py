@@ -31,9 +31,8 @@ class FeedForwardSegmentation(BaseModel):
         self.states = [(None, None)]
 
         # load/define networks
-        self.net = get_network(opts.model_type, in_channels=opts.input_nc,
-                               nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
-                               attention_dsample=opts.attention_dsample)
+        self.net = get_network(opts.model_type, in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
+                               attention_dsample=opts.attention_dsample, bptt_step=opts.bptt_step)
         if self.use_cuda:
             self.net = self.net.cuda()
 
@@ -68,8 +67,8 @@ class FeedForwardSegmentation(BaseModel):
             self.schedulers.append(get_scheduler(optimizer, train_opt))
             print('Scheduler is added for optimiser {0}'.format(optimizer))
 
-    def init_hidden(self, bs, input_size):
-        self.states = [(None, self.net.init_hidden(bs, input_size))]
+    def init_hidden(self):
+        self.states = [(None, None)]
 
     def set_input(self, *inputs):
         for idx, _input in enumerate(inputs):
@@ -90,13 +89,12 @@ class FeedForwardSegmentation(BaseModel):
                 Variable(self.input, requires_grad=False))
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
-            self.pred_seg = torch.round(self.prediction.data) * 255
+            self.pred_seg = torch.round(self.prediction.data)*255
 
     def forward_state_aware(self, split, bptt_steps=1):
-        state = [i.detach() for i in self.states[-1][1]]
+        state = self.states[-1][1].detach()
         if split == 'train':
-            for item in state:
-                item.requires_grad = True
+            state.requires_grad = True
             self.prediction, new_state = self.net(
                 Variable(self.input), state)
             self.outputs.append(self.prediction)
@@ -104,16 +102,15 @@ class FeedForwardSegmentation(BaseModel):
 
             while len(self.outputs) > bptt_steps:
                 del self.outputs[0]
-                del self.targets[0]
+                del self.target[0]
 
         elif split == 'test':
-            for item in state:
-                item.requires_grad = False
+            state.requires_grad = False
             self.prediction, new_state = self.net(
                 Variable(self.input, requires_grad=False), state)
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
-            self.pred_seg = torch.round(self.prediction.data) * 255
+            self.pred_seg = torch.round(self.prediction.data)*255
         self.states.append((state, new_state))
 
         while len(self.states) > bptt_steps:
@@ -140,21 +137,21 @@ class FeedForwardSegmentation(BaseModel):
         if iteration == 0:
             self.optimizer_S.zero_grad()
         self.net.train()
-        self.forward_state_aware(split='train', bptt_steps=bptt_step)
-        if iteration + 1 % bptt_step == 0:
+        self.forward_state_aware(split='train', bptt_step=bptt_step)
+        if iteration+1 % bptt_step == 0:
             self.optimizer_S.zero_grad()
             for i in range(bptt_step):
                 self.loss_S = self.criterion(
-                    self.outputs[i - 1], self.targets[i - 1])
+                    self.outputs[i-1], self.targets[i-1])
                 self.loss_S.backward(retain_graph=True)
-                if self.states[-i - 2][0] == None:
+                if self.states[-i-2][0] == None:
                     break
-                for state_1, state_2 in zip(self.states[-i-1], self.states[-i-2]):
-                    curr_grad = state_1.grad
-                    state_2.backward(curr_grad)
+                curr_grad = self.states[-i-1].grad
+                self.states[-i-2][1].backward(curr_grad)
         self.optimizer_S.step()
 
-    # This function updates the network parameters every "accumulate_iters"
+        # This function updates the network parameters every "accumulate_iters"
+
     def optimize_parameters_accumulate_grd(self, iteration):
         accumulate_iters = int(2)
         if iteration == 0:
@@ -179,7 +176,7 @@ class FeedForwardSegmentation(BaseModel):
 
     def validate(self):
         self.net.eval()
-        self.forward_state_aware(split='test')
+        self.forward(split='test')
         self.loss_S = self.criterion(self.prediction, self.target)
 
     def get_segmentation_stats(self):
@@ -189,7 +186,7 @@ class FeedForwardSegmentation(BaseModel):
                      ('Mean_IOU', self.seg_scores['mean_iou'])]
         for class_id in range(self.dice_score.size):
             seg_stats.append(('Class_{}'.format(class_id),
-                              self.dice_score[class_id]))
+                             self.dice_score[class_id]))
         return OrderedDict(seg_stats)
 
     def get_current_errors(self):
@@ -201,8 +198,7 @@ class FeedForwardSegmentation(BaseModel):
         inp_doppler = util.tensor2im(self.input[:, [1], :, :], 'doppler')
         seg_img = util.tensor2im(self.pred_seg, 'lbl')
         ground_truth = util.tensor2im(labels, 'ground_truth')
-        return OrderedDict(
-            [('out_S', seg_img), ('ground_truth', ground_truth), ('inp_S', inp_img), ('inp_doppler', inp_doppler)])
+        return OrderedDict([('out_S', seg_img), ('ground_truth', ground_truth), ('inp_S', inp_img), ('inp_doppler', inp_doppler)])
 
     def get_feature_maps(self, layer_name, upscale):
         feature_extractor = HookBasedFeatureExtractor(
@@ -219,7 +215,7 @@ class FeedForwardSegmentation(BaseModel):
         fp, bp = benchmark_fp_bp_time(self.net, inp_array, out_array)
 
         bsize = size[0]
-        return fp / float(bsize), bp / float(bsize)
+        return fp/float(bsize), bp/float(bsize)
 
     def save(self, epoch_label):
         self.save_network(self.net, 'S', epoch_label, self.gpu_ids)

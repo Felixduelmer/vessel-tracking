@@ -137,11 +137,14 @@ class ConvGRU(nn.Module):
 
         for layer_idx in range(self.num_layers):
             h = hidden_state[layer_idx]
-            # input current hidden and cell state then compute the next hidden and cell state through ConvLSTMCell forward function
-            h = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, :, :, :],  # (b,t,c,h,w)
-                                          h_cur=h)
+            output_inner = []
+            for t in range(seq_len):
+                # input current hidden and cell state then compute the next hidden and cell state through ConvLSTMCell forward function
+                h = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, t, :, :, :],  # (b,t,c,h,w)
+                                              h_cur=h)
+                output_inner.append(h)
 
-            layer_output = h
+            layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
 
             layer_output_list.append(layer_output)

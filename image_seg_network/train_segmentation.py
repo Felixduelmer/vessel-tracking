@@ -40,14 +40,12 @@ def train(arguments):
     # Architecture type
     arch_type = train_opts.arch_type
 
-    # bptt
-    bptt_step = json_opts.model.bptt_step
-    assert bptt_step > 1
-
     # Setup Dataset and Augmentation
     ds_class = get_dataset(arch_type)
-    ds_path = get_dataset_path(arch_type, json_opts.data_path) if polyaxon_input_path is None else polyaxon_input_path
-    ds_transform = get_dataset_transformation(arch_type, opts=json_opts.augmentation)
+    ds_path = get_dataset_path(
+        arch_type, json_opts.data_path) if polyaxon_input_path is None else polyaxon_input_path
+    ds_transform = get_dataset_transformation(
+        arch_type, opts=json_opts.augmentation)
 
     # Setup the NN Model
     model = get_model(json_opts.model, polyaxon_output_path)
@@ -84,21 +82,18 @@ def train(arguments):
         # Training Iterations
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
-            model.init_hidden()
-            for i in range(int(train_opts.seq_len / bptt_step)):
-                i *= bptt_step
-                sub_images = images[:, i:i + bptt_step:, :,
-                             :].reshape(images.shape[0] * bptt_step, *images.shape[2:])
-                sub_labels = labels[:, i:i + bptt_step, :, :,
-                             :].reshape(labels.shape[0] * bptt_step, *labels.shape[2:])
+            model.init_hidden(images.size(0), images.size(3))
+            for i in range(train_opts.seq_len):
+                model.set_input(images[:, i, :, :, :], labels[:, i, :, :, :])
 
-                model.set_input(sub_images, sub_labels)
-                model.optimize_parameters()
+                model.optimize_parameters_state_aware(
+                    iteration=i, bptt_step=train_opts.bptt_step)
                 # model.optimize_parameters_accumulate_grd(epoch_iter)
 
                 # Error visualisation
-                errors = model.get_current_errors()
-                error_logger.update(errors, split='train')
+                if i + 1 % train_opts.bptt_step == 0:
+                    errors = model.get_current_errors()
+                    error_logger.update(errors, split='train')
             # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]),
             #                                    labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
             #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
@@ -112,16 +107,11 @@ def train(arguments):
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
-                model.init_hidden()
+                model.init_hidden(images.size(0), images.size(3))
                 # Make a forward pass with the model
-                for i in range(int(train_opts.seq_len / bptt_step)):
-                    i *= bptt_step
-                    sub_images = images[:, i:i + bptt_step:, :, :].reshape(images.shape[0] * bptt_step,
-                                                                           *images.shape[2:])
-                    sub_labels = labels[:, i:i + bptt_step, :, :,
-                                 :].reshape(labels.shape[0] * bptt_step, *labels.shape[2:])
-
-                    model.set_input(sub_images, sub_labels)
+                for i in range(train_opts.seq_len):
+                    model.set_input(images[:, i, :, :, :],
+                                    labels[:, i, :, :, :])
                     model.validate()
 
                     # Error visualisation
@@ -130,9 +120,9 @@ def train(arguments):
                     error_logger.update({**errors, **stats}, split=split)
 
                     # Visualise predictions
-                    visuals = model.get_current_visuals(sub_labels)
-                    visualizer.display_current_results(visuals, epoch=epoch, save_result=False)
-
+                    visuals = model.get_current_visuals(labels[:, i, :, :, :])
+                    visualizer.display_current_results(
+                        visuals, epoch=epoch, save_result=False)
 
                 # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
                 #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
