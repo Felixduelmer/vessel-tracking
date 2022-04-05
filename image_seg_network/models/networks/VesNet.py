@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.modules.convgru import ConvGRU
+from models.modules.convgru import ConvGRUCell
 from torch.nn.utils.rnn import pad_sequence
 from models.networks.utils import MultiAttentionBlock
 from models.modules.cbam import ChannelGate
@@ -47,12 +47,11 @@ For simplicity let's start with same amount of input dimensions as hidden dimens
 
 
 def ConvGru(input_size):
-    return ConvGRU(
+    return ConvGRUCell(
         input_dim=input_size,
         hidden_dim=input_size,
         kernel_size=3,
-        num_layers=1,
-        batch_first=True
+        bias=True,
     )
 
 
@@ -64,8 +63,10 @@ class SpatialChannelAttentionModule(nn.Module):
         self.attention_dsample = (2, 2)
         self.selfSpatialAttentionHigherResolutionSpace = ChannelGate(
             gate_channels=self.filters[0])
-        self.multiScaleSpatialAttention = MultiAttentionBlock(in_size=self.filters[0], gate_size=self.filters[1], inter_size=self.filters[0],
-                                                              nonlocal_mode=self.attentionMode, sub_sample_factor=self.attention_dsample)
+        self.multiScaleSpatialAttention = MultiAttentionBlock(in_size=self.filters[0], gate_size=self.filters[1],
+                                                              inter_size=self.filters[0],
+                                                              nonlocal_mode=self.attentionMode,
+                                                              sub_sample_factor=self.attention_dsample)
         self.selfSpatialAttentionLowerResolutionSpace = ChannelGate(
             gate_channels=self.filters[1])
 
@@ -98,7 +99,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.filters = filters
         self.conv1 = nn.Conv2d(
-            self.filters*2, self.filters, kernel_size=3, padding=1)
+            self.filters * 2, self.filters, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(self.filters, self.filters,
                                kernel_size=3, padding=1)
         self.batchNormAndPrelu = BatchNormAndPReLU(self.filters)
@@ -196,6 +197,7 @@ class VesNet(nn.Module):
 
     def forward(self, input, hidden):
 
+        new_hidden = [None]*4
         if hidden is None:
             hidden = self.init_hidden(input.size(0), input.size(2))
         # encoding path
@@ -215,11 +217,16 @@ class VesNet(nn.Module):
         # intermediate Steps
         # temporal attention units
         # returns output and hidden state in two lists
-        resConvGru4, hidden[3] = self.convGru4(resEncoder4, hidden[3])
-        resConvGru3, hidden[2] = self.convGru3(resEncoder3, hidden[2])
-        resConvGru2, hidden[1] = self.convGru2(resEncoder2, hidden[1])
-        resConvGru1, hidden[0] = self.convGru1(resEncoder1, hidden[0])
+        resConvGru4 = self.convGru4(resEncoder4, hidden[3])
+        resConvGru3 = self.convGru3(resEncoder3, hidden[2])
+        resConvGru2 = self.convGru2(resEncoder2, hidden[1])
+        resConvGru1 = self.convGru1(resEncoder1, hidden[0])
 
+        # store for next calculation
+        new_hidden[3] = resConvGru4
+        new_hidden[2] = resConvGru3
+        new_hidden[1] = resConvGru2
+        new_hidden[0] = resConvGru1
         # decoder
         resSpatialChAtt3 = self.spatialChannelAttention3(
             resConvGru3, resConvGru4)
@@ -236,7 +243,7 @@ class VesNet(nn.Module):
         resUp2 = self.resizeUp2(resConvGru2)
         resDecoder1 = self.decoder1(resSpatialChAtt1, resUp2)
 
-        return self.conv_out(resDecoder1), hidden
+        return self.conv_out(resDecoder1), new_hidden
 
     @staticmethod
     def apply_sigmoid(pred):
@@ -248,8 +255,8 @@ class VesNet(nn.Module):
         hidden_states = []
         for i, filter in enumerate(self.filters):
             # number of hidden layers comes up first
-            hidden_states.append(Variable(torch.zeros(
-                1, batch_size, filter, np.int(input_size/(2**i)), np.int(input_size/(2**i)))).to(self.device))
+            hidden_states.append(Variable(torch.zeros(batch_size, filter, np.int(input_size / (2 ** i)), np.int(input_size / (2 ** i)), requires_grad=True,
+                device=self.device)))
         return hidden_states
 
 

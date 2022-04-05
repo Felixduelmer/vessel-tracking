@@ -3,6 +3,12 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/experiment_unet" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/experiment_unet_solo_bmode" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/experiment_unet_solo_bmode_continue_train" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/experiment_vesnet" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/experiment_vesnet_with_all" />
+      <excludeFolder url="file://$MODULE_DIR$/checkpoints/vesnet_stablized_doppler" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.6 (image_seg_network)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

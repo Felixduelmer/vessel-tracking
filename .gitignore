@@ -1,22 +1,15 @@
 
-*.pyc
 
 network/modules/__pycache__/
+image_seg_network/checkpoints/
+image_seg_network/build/
 
+*.pyc
 *.pth
-
-image_seg_network/checkpoints/experiment_vesnet/loss_log.txt
-
-image_seg_network/checkpoints/experiment_unet/loss_log.txt
-
 *.h5
-
-image_seg_network/checkpoints/experiment_unet_solo_bmode/
-
-image_seg_network/checkpoints/experiment_unet_solo_bmode_continue_train/
-
 *.png
 
 image_seg_network/play.py
 
 image_seg_network/utils/play.py
+

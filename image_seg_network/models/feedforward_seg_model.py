@@ -99,6 +99,8 @@ class FeedForwardSegmentation(BaseModel):
                 item.requires_grad = True
             self.prediction, new_state = self.net(
                 Variable(self.input), state)
+            for state in new_state:
+                state.retain_grad()
             self.outputs.append(self.prediction)
             self.targets.append(self.target)
 
@@ -137,22 +139,21 @@ class FeedForwardSegmentation(BaseModel):
     # for reference check this post:
     # https://discuss.pytorch.org/t/implementing-truncated-backpropagation-through-time/15500/3
     def optimize_parameters_state_aware(self, iteration, bptt_step):
-        if iteration == 0:
-            self.optimizer_S.zero_grad()
-        self.net.train()
-        self.forward_state_aware(split='train', bptt_steps=bptt_step)
-        if iteration + 1 % bptt_step == 0:
-            self.optimizer_S.zero_grad()
-            for i in range(bptt_step):
-                self.loss_S = self.criterion(
-                    self.outputs[i - 1], self.targets[i - 1])
-                self.loss_S.backward(retain_graph=True)
-                if self.states[-i - 2][0] == None:
-                    break
-                for state_1, state_2 in zip(self.states[-i-1], self.states[-i-2]):
-                    curr_grad = state_1.grad
-                    state_2.backward(curr_grad)
-        self.optimizer_S.step()
+        with torch.autograd.set_detect_anomaly(True):
+            self.net.train()
+            self.forward_state_aware(split='train', bptt_steps=bptt_step)
+            backprop_through_time = (iteration + 1) % bptt_step == 0
+            if backprop_through_time:
+                self.optimizer_S.zero_grad()
+                for i in range(bptt_step - 1):
+                    self.loss_S = self.criterion(self.outputs[-i-1], self.targets[-i-1])
+                    self.loss_S.backward(retain_graph=True)
+                    if self.states[-i - 2][0] == None:
+                        break
+                    for state_1, state_2 in zip(self.states[-i - 1][1], self.states[-i - 2][1]):
+                        curr_grad = state_1.grad
+                        state_2.backward(curr_grad, retain_graph=True)
+                self.optimizer_S.step()
 
     # This function updates the network parameters every "accumulate_iters"
     def optimize_parameters_accumulate_grd(self, iteration):
