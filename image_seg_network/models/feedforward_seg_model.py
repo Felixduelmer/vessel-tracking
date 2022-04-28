@@ -146,7 +146,7 @@ class FeedForwardSegmentation(BaseModel):
             if backprop_through_time:
                 self.optimizer_S.zero_grad()
                 for i in range(bptt_step - 1):
-                    self.loss_S = self.criterion(self.outputs[-i-1], self.targets[-i-1])
+                    self.loss_S = self.criterion(self.outputs[-i - 1], self.targets[-i - 1])
                     self.loss_S.backward(retain_graph=True)
                     if self.states[-i - 2][0] == None:
                         break
@@ -180,6 +180,12 @@ class FeedForwardSegmentation(BaseModel):
 
     def validate(self):
         self.net.eval()
+        self.forward(split='test')
+        self.loss_S = self.criterion(self.prediction, self.target)
+
+
+    def validate_state_aware(self):
+        self.net.eval()
         self.forward_state_aware(split='test')
         self.loss_S = self.criterion(self.prediction, self.target)
 
@@ -205,10 +211,12 @@ class FeedForwardSegmentation(BaseModel):
         return OrderedDict(
             [('out_S', seg_img), ('ground_truth', ground_truth), ('inp_S', inp_img), ('inp_doppler', inp_doppler)])
 
+
     def get_feature_maps(self, layer_name, upscale):
         feature_extractor = HookBasedFeatureExtractor(
             self.net, layer_name, upscale)
         return feature_extractor.forward(Variable(self.input))
+
 
     # returns the fp/bp times of the model
     def get_fp_bp_time(self, size=None):
@@ -221,6 +229,7 @@ class FeedForwardSegmentation(BaseModel):
 
         bsize = size[0]
         return fp / float(bsize), bp / float(bsize)
+
 
     def save(self, epoch_label):
         self.save_network(self.net, 'S', epoch_label, self.gpu_ids)

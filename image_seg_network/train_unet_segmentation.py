@@ -82,18 +82,14 @@ def train(arguments):
         # Training Iterations
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
             # Make a training update
-            model.init_hidden(images.size(0), images.size(3))
             for i in range(train_opts.seq_len):
                 model.set_input(images[:, i, :, :, :], labels[:, i, :, :, :])
 
-                model.optimize_parameters_state_aware(
-                    iteration=i, bptt_step=train_opts.bptt_step)
+                model.optimize_parameters()
                 # model.optimize_parameters_accumulate_grd(epoch_iter)
 
-                # Error visualisation
-                if i + 1 % train_opts.bptt_step == 0:
-                    errors = model.get_current_errors()
-                    error_logger.update(errors, split='train')
+                errors = model.get_current_errors()
+                error_logger.update(errors, split='train')
             # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]),
             #                                    labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
             #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
@@ -107,12 +103,11 @@ def train(arguments):
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
-                model.init_hidden(images.size(0), images.size(3))
                 # Make a forward pass with the model
                 for i in range(train_opts.seq_len):
                     model.set_input(images[:, i, :, :, :],
                                     labels[:, i, :, :, :])
-                    model.validate_state_aware()
+                    model.validate()
 
                     # Error visualisation
                     errors = model.get_current_errors()

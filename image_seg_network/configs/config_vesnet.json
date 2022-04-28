@@ -7,8 +7,8 @@
         "lr_decay_iters": 150,
         "preloadData": true,
         "seq_len": 20,
-        "batchSize": 5,
-        "bptt_step": 5
+        "batchSize": 8,
+        "bptt_step": 4
     },
     "visualisation": {
         "display_port": 8097,
@@ -39,10 +39,10 @@
         "continue_train": false,
         "which_epoch": -1,
         "model_type": "vesnet",
-        "division_factor": 16,
+        "division_factor": 8,
         "has_hidden": true,
         "input_nc": 2,
-        "lr_rate": 1e-3,
+        "lr_rate": 1e-4,
         "l2_reg_weight": 1e-6,
         "feature_scale": 8,
         "gpu_ids": [
@@ -51,7 +51,7 @@
         "optim": "adam",
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "vesnet_stablized_doppler",
+        "experiment_name": "bs10_bptt_4",
         "criterion": "binary_dice_loss"
     }
 }

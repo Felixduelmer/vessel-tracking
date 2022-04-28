@@ -68,8 +68,7 @@ class ModelOpts:
             self.aggregation_mode = opts.aggregation_mode
 
 
-def get_model(json_opts, polyaxon_output_path):
-
+def get_model(json_opts, polyaxon_output_path=None):
     # Neural Network Model Initialisation
     model = None
     model_opts = ModelOpts()
