@@ -70,7 +70,6 @@ class ErrorLogger(object):
 
     def __init__(self):
         self.variables = {'train': dict(),
-                          'validation': dict(),
                           'test': dict()
                           }
 
@@ -93,8 +92,6 @@ class ErrorLogger(object):
 
     def reset(self):
         for key, meter_obj in self.variables['train'].items():
-            meter_obj.reset()
-        for key, meter_obj in self.variables['validation'].items():
             meter_obj.reset()
         for key, meter_obj in self.variables['test'].items():
             meter_obj.reset()

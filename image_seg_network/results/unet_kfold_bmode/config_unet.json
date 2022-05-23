@@ -34,9 +34,9 @@
         "which_epoch": -1,
         "model_type": "unet",
         "division_factor": 16,
-        "input_nc": [0, 1],
-        "lr_rate": 1e-4,
-        "l2_reg_weight": 1e-4,
+        "input_nc": 1,
+        "lr_rate": 1e-5,
+        "l2_reg_weight": 1e-6,
         "feature_scale": 8,
         "gpu_ids": [
             0
@@ -44,9 +44,7 @@
         "optim": "adam",
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "unet_kfold_bmode_doppler",
-        "criterion": "soft_dice_loss",
-        "is_rnn": false
-
+        "experiment_name": "unet_kfold",
+        "criterion": "soft_dice_loss"
     }
 }

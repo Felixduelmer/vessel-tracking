@@ -83,8 +83,8 @@ def train(arguments):
         test_dataset = ds_class(ds_path, split='test', fold=fold,
                                 preload_data=train_opts.preloadData)
         train_loader = DataLoader(
-            dataset=train_dataset, num_workers=8, batch_size=train_opts.batchSize, shuffle=True)
-        test_loader = DataLoader(dataset=test_dataset, num_workers=8,
+            dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, num_workers=0,
                                  batch_size=train_opts.batchSize, shuffle=True)
 
         # initialize the early_stopping object
@@ -98,14 +98,29 @@ def train(arguments):
             # Training Iterations
             for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
                 # Make a training update
+                model.init_hidden(images.size(0), images.size(3))
+
                 for i in range(train_opts.seq_len):
                     model.set_input(images[:, i, :, :, :], labels[:, i, :, :, :])
+                    model.forward('train')
 
-                    model.optimize_parameters()
-                    # model.optimize_parameters_accumulate_grd(epoch_iter)
-
-                    errors = model.get_current_errors()
-                    error_logger.update(errors, split='train')
+                    if not json_opts.model.is_rnn:
+                        model.optimize_parameters()
+                        errors = model.get_current_errors()
+                        error_logger.update(errors, split='train')
+                    elif ((i+1) % train_opts.update_freq) == 0:
+                        model.optimize_parameters()
+                        errors = model.get_current_errors()
+                        error_logger.update(errors, split='train')
+                    elif (i+1) == train_opts.seq_len:
+                        model.optimize_parameters()
+                        errors = model.get_current_errors()
+                        error_logger.update(errors, split='train')
+                # model.optimize_parameters()
+                # # model.optimize_parameters_accumulate_grd(epoch_iter)
+                #
+                # errors = model.get_current_errors()
+                # error_logger.update(errors, split='train')
                 # for img, lbl in zip(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]),
                 #                                    labels.reshape(np.prod(labels.shape[:2]), *labels.shape[2:])):
                 #     model.set_input(torch.unsqueeze(img, axis=0), torch.unsqueeze(lbl, axis=0))
@@ -119,6 +134,7 @@ def train(arguments):
             # Validation and Testing Iterations
             for epoch_iter, (images, labels) in tqdm(enumerate(test_loader, 1), total=len(test_loader)):
                 # Make a forward pass with the model
+                model.init_hidden(images.size(0), images.size(3))
                 for i in range(train_opts.seq_len):
                     model.set_input(images[:, i, :, :, :],
                                     labels[:, i, :, :, :])
@@ -152,7 +168,7 @@ def train(arguments):
             if not_polyaxon:
                 for split in ['train', 'test']:
                     visualizer.plot_current_errors(
-                        epoch, error_logger.get_errors(split),split_name=split + '_fold_' + str(fold))
+                        epoch, error_logger.get_errors(split), split_name=split + '_fold_' + str(fold))
                     visualizer.print_current_errors(
                         epoch, error_logger.get_errors(split), split_name=split + '_fold_' + str(fold))
             else:
@@ -162,7 +178,7 @@ def train(arguments):
                         message += '%s: %.3f ' % (k, v)
                 print(message)
 
-            # early_stopping needs the validation loss to check if it has decreased,
+            # early_stopping needs the validation loss to check if it has decresed,
             # and if it has, it will make a checkpoint of the current model
             early_stopping(error_logger.get_errors('test').get('Seg_Loss'))
             tmp_dict = error_logger.get_errors('test')

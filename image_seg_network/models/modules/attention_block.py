@@ -172,7 +172,7 @@ class _GridAttentionBlockND(nn.Module):
 
 class GridAttentionBlock2D(_GridAttentionBlockND):
     def __init__(self, in_channels, gating_channels, inter_channels=None, mode='concatenation',
-                 sub_sample_factor=(2, 2, 2)):
+                 sub_sample_factor=(2, 2)):
         super(GridAttentionBlock2D, self).__init__(in_channels,
                                                    inter_channels=inter_channels,
                                                    gating_channels=gating_channels,

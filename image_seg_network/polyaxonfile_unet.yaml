@@ -20,14 +20,14 @@ environment:
   resources:
     cpu:
       requests: 8
-      limits: 8
+      limits: 16
     memory:
-      requests: 30000
-      limits: 35000
+      requests: 35000
+      limits: 45000
     gpu:
       requests: 1
       limits: 1
 
 
 run:
-  cmd: python -u train_rnn_segmentation.py  -c configs/config_butterflysimple.json
+  cmd: python -u train_unet_segmentation.py  -c configs/config_unet.json

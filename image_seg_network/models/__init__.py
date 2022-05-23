@@ -20,6 +20,7 @@ class ModelOpts:
         self.type = 'seg'
         self.has_hidden = False
         self.optim = 'sgd'
+        self.isRNN = True
 
         # Attention
         self.nonlocal_mode = 'concatenation'
@@ -40,6 +41,7 @@ class ModelOpts:
         self.input_nc = opts.input_nc
         self.continue_train = opts.continue_train
         self.which_epoch = opts.which_epoch
+        self.isRNN = opts.is_rnn
 
         if hasattr(opts, 'has_hidden'):
             self.has_hidden = opts.has_hidden

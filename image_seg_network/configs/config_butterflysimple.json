@@ -8,7 +8,8 @@
         "batchSize": 32,
         "preloadData": true,
         "seq_len": 20,
-        "patience": 15
+        "patience": 15,
+        "update_freq": 20
     },
     "visualisation": {
         "display_port": 8097,
@@ -32,11 +33,11 @@
         "type": "seg",
         "continue_train": false,
         "which_epoch": -1,
-        "model_type": "unet",
+        "model_type": "butterflynetsimple",
         "division_factor": 16,
         "input_nc": [0, 1],
         "lr_rate": 1e-4,
-        "l2_reg_weight": 1e-4,
+        "l2_reg_weight": 1e-6,
         "feature_scale": 8,
         "gpu_ids": [
             0
@@ -44,9 +45,8 @@
         "optim": "adam",
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "unet_kfold_bmode_doppler",
+        "experiment_name": "buttefly_net_simple_test",
         "criterion": "soft_dice_loss",
         "is_rnn": false
-
     }
 }

@@ -29,25 +29,29 @@ def cross_entropy_3D(input, target, weight=None, size_average=True):
 
 
 class SoftDiceLoss(nn.Module):
-    def __init__(self, n_classes):
+    '''
+    soft-dice loss, useful in binary segmentation
+    '''
+    def __init__(self,
+                 p=2,
+                 smooth=1):
         super(SoftDiceLoss, self).__init__()
-        self.one_hot_encoder = One_Hot(n_classes).forward
-        self.n_classes = n_classes
+        self.p = p
+        self.smooth = smooth
 
-    def forward(self, input, target):
-        smooth = 0.01
-        batch_size = input.size(0)
-
-        input = F.softmax(input, dim=1).view(batch_size, self.n_classes, -1)
-        target = self.one_hot_encoder(target).contiguous().view(
-            batch_size, self.n_classes, -1)
-
-        inter = torch.sum(input * target, 2) + smooth
-        union = torch.sum(input, 2) + torch.sum(target, 2) + smooth
-
-        score = torch.sum(2.0 * inter / union)
-        score = 1.0 - score / (float(batch_size) * float(self.n_classes))
-        return score
+    def forward(self, logits, labels):
+        '''
+        inputs:
+            logits: tensor of shape (N, H, W, ...)
+            label: tensor of shape(N, H, W, ...)
+        output:
+            loss: tensor of shape(1, )
+        '''
+        probs = torch.sigmoid(logits)
+        numer = (probs * labels).sum()
+        denor = (probs.pow(self.p) + labels.pow(self.p)).sum()
+        loss = 1. - (2 * numer + self.smooth) / (denor + self.smooth)
+        return loss
 
 
 # PyTorch

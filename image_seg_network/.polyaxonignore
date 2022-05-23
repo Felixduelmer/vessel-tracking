@@ -1,5 +1,6 @@
-
 .git
+.vscode
+.idea
 .eggs
 eggs
 lib
@@ -7,8 +8,9 @@ lib64
 parts
 sdist
 var
-checkpoints/
-venv/
+checkpoints
+venv
+results
 *.pyc
 *.swp
 .DS_Store

@@ -10,6 +10,7 @@ from .layers.loss import *
 from .networks_other import get_scheduler, print_network, benchmark_fp_bp_time
 from .utils import segmentation_stats, get_optimizer, get_criterion
 from .networks.utils import HookBasedFeatureExtractor
+from models.networks.VesNet import VesNet
 
 
 class FeedForwardSegmentation(BaseModel):
@@ -20,7 +21,8 @@ class FeedForwardSegmentation(BaseModel):
     def initialize(self, opts, **kwargs):
         BaseModel.initialize(self, opts, **kwargs)
         self.isTrain = opts.isTrain
-        self.has_hidden = opts.has_hidden
+        self.isRNN = opts.isRNN
+        self.inChannels = opts.input_nc
 
         # define network input and output pars
         self.input = None
@@ -28,10 +30,12 @@ class FeedForwardSegmentation(BaseModel):
 
         self.outputs = []
         self.targets = []
-        self.states = [(None, None)]
+        self.states = None
+
+        self.scaler = torch.cuda.amp.GradScaler()
 
         # load/define networks
-        self.net = get_network(opts.model_type, in_channels=opts.input_nc,
+        self.net = get_network(opts.model_type, in_channels=len(opts.input_nc),
                                nonlocal_mode=opts.nonlocal_mode, feature_scale=opts.feature_scale,
                                attention_dsample=opts.attention_dsample)
         if self.use_cuda:
@@ -69,7 +73,11 @@ class FeedForwardSegmentation(BaseModel):
             print('Scheduler is added for optimiser {0}'.format(optimizer))
 
     def init_hidden(self, bs, input_size):
-        self.states = [(None, self.net.init_hidden(bs, input_size))]
+        if self.isRNN:
+            # if isinstance(self.net, VesNet):
+            #     self.states = [(None, self.net.init_hidden(bs, input_size))]
+            # else:
+            self.states = self.net.init_hidden(bs, input_size)
 
     def set_input(self, *inputs):
         for idx, _input in enumerate(inputs):
@@ -83,11 +91,25 @@ class FeedForwardSegmentation(BaseModel):
 
     def forward(self, split):
         if split == 'train':
-            self.prediction = self.net(Variable(self.input))
-
+            self.net.train()
+            if not self.isRNN:
+                with torch.cuda.amp.autocast():
+                    self.prediction = self.net(Variable(self.input[:, self.inChannels, :, :]))
+            else:
+                with torch.cuda.amp.autocast():
+                    self.prediction, self.states = self.net(Variable(self.input[:, self.inChannels, :, :]), self.states)
+                self.outputs.append(self.prediction)
+                self.targets.append(self.target)
         elif split == 'test':
-            self.prediction = self.net(
-                Variable(self.input, requires_grad=False))
+            self.net.eval()
+            if not self.isRNN:
+                with torch.no_grad():
+                    self.prediction = self.net(
+                        Variable(self.input[:, self.inChannels, :, :]))
+            else:
+                with torch.no_grad():
+                    self.prediction, self.states = self.net(
+                        Variable(self.input[:, self.inChannels, :, :]), self.states)
             self.prediction = self.net.apply_sigmoid(self.prediction)
             # Apply a softmax and return a segmentation map
             self.pred_seg = torch.round(self.prediction.data) * 255
@@ -123,18 +145,21 @@ class FeedForwardSegmentation(BaseModel):
             del self.states[0]
 
     def backward(self):
-        self.loss_S = self.criterion(self.prediction, self.target)
-        self.loss_S.backward()
-        if self.has_hidden:
-            self.hidden = [h.detach() for h in self.hidden]
+        if self.isRNN:
+            self.loss_S = self.criterion(torch.cat(self.outputs), torch.cat(self.targets))
+        else:
+            self.loss_S = self.criterion(self.prediction, self.target)
+        self.scaler.scale(self.loss_S).backward()
 
     def optimize_parameters(self):
-        self.net.train()
-        self.forward(split='train')
-
         self.optimizer_S.zero_grad()
         self.backward()
-        self.optimizer_S.step()
+        self.scaler.step(self.optimizer_S)
+        self.scaler.update()
+        if self.isRNN:
+            self.states = [Variable(i.data) for i in self.states]
+            self.outputs = []
+            self.targets = []
 
     # for reference check this post:
     # https://discuss.pytorch.org/t/implementing-truncated-backpropagation-through-time/15500/3
@@ -173,7 +198,7 @@ class FeedForwardSegmentation(BaseModel):
         self.forward(split='test')
 
     def inference(self):
-        with torch.no_grad:
+        with torch.no_grad():
             self.net.eval()
             self.forward(split="test")
             return self.pred_seg
@@ -208,15 +233,17 @@ class FeedForwardSegmentation(BaseModel):
         inp_doppler = util.tensor2im(self.input[:, [1], :, :], 'doppler')
         seg_img = util.tensor2im(self.pred_seg, 'lbl')
         ground_truth = util.tensor2im(labels, 'ground_truth')
-        return OrderedDict(
-            [('out_S', seg_img), ('ground_truth', ground_truth), ('inp_S', inp_img), ('inp_doppler', inp_doppler)])
-
+        res = OrderedDict([('out_S', seg_img), ('ground_truth', ground_truth)])
+        if 0 in self.inChannels:
+            res['inp_Bmode'] = inp_img
+        if 1 in self.inChannels:
+            res['inp_Doppler'] = inp_doppler
+        return res
 
     def get_feature_maps(self, layer_name, upscale):
         feature_extractor = HookBasedFeatureExtractor(
             self.net, layer_name, upscale)
         return feature_extractor.forward(Variable(self.input))
-
 
     # returns the fp/bp times of the model
     def get_fp_bp_time(self, size=None):
@@ -230,6 +257,8 @@ class FeedForwardSegmentation(BaseModel):
         bsize = size[0]
         return fp / float(bsize), bp / float(bsize)
 
-
     def save(self, epoch_label):
         self.save_network(self.net, 'S', epoch_label, self.gpu_ids)
+
+    def save_fold(self, epoch_label, fold):
+        self.save_network(self.net, 'S_fold_' + str(fold), epoch_label, self.gpu_ids)

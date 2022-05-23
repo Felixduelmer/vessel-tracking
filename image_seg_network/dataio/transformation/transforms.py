@@ -47,7 +47,7 @@ class Transformations:
                                       # black and white noise
                                       ])
 
-        valid_transform = ts.Compose([ts.ConvertImageDtype(dtype=torch.float64),
+        test_transform = ts.Compose([ts.ConvertImageDtype(dtype=torch.float64),
                                       ])
 
-        return {'train': train_transform, 'valid': valid_transform}
+        return {'train': train_transform, 'test': test_transform}

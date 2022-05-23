@@ -11,19 +11,27 @@ from .utils import check_exceptions
 
 
 class UltraSoundDataset(data.Dataset):
-    def __init__(self, root_path, split, transform=None, preload_data=False):
+    def __init__(self, root_path, split, fold, transform=None, preload_data=False):
         super(UltraSoundDataset, self).__init__()
 
         f = h5py.File(root_path, 'r')
+        self.images = []
+        self.labels = []
 
-        self.images = f['x_' + split]
-
-        if preload_data:
-            self.images = np.array(self.images[:])
-
-        self.labels = f['y_' + split][:]
+        if split is "test":
+            self.images.append(f['x_' + str(fold)][:])
+            self.labels.append(f['y_' + str(fold)][:])
+        else:
+            for i in range(7):
+                if i is fold:
+                    continue
+                self.images.append(f['x_' + str(i)][:])
+                self.labels.append(f['y_' + str(i)][:])
 
         assert len(self.images) == len(self.labels)
+
+        self.images = np.concatenate(self.images)
+        self.labels = np.concatenate(self.labels)
 
         # data augmentation
         self.transform = transform

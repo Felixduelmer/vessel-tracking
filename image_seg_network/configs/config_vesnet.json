@@ -7,8 +7,10 @@
         "lr_decay_iters": 150,
         "preloadData": true,
         "seq_len": 20,
-        "batchSize": 8,
-        "bptt_step": 4
+        "batchSize": 16,
+        "bptt_step": 4,
+        "patience": 15,
+        "update_freq": 4
     },
     "visualisation": {
         "display_port": 8097,
@@ -18,7 +20,7 @@
         "display_single_pane_ncols": 0
     },
     "data_path": {
-        "us": "/home/robotics-verse/projects/felix/DataSet/h5_datasets/ultrasound.h5"
+        "us": "/data1/volume1/data/felix_data/h5_files/ultrasound_patient_original.h5"
     },
     "augmentation": {
         "us": {
@@ -41,8 +43,8 @@
         "model_type": "vesnet",
         "division_factor": 8,
         "has_hidden": true,
-        "input_nc": 2,
-        "lr_rate": 1e-4,
+        "input_nc": [0, 1],
+        "lr_rate": 1e-3,
         "l2_reg_weight": 1e-6,
         "feature_scale": 8,
         "gpu_ids": [
@@ -51,7 +53,8 @@
         "optim": "adam",
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "bs10_bptt_4",
-        "criterion": "binary_dice_loss"
+        "experiment_name": "vesnet_kfold",
+        "criterion": "soft_dice_loss",
+        "is_rnn": true
     }
 }

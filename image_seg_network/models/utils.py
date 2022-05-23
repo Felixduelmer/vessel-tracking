@@ -39,6 +39,8 @@ def get_criterion(opts):
         criterion = BCEWithLogitsLoss(pos_weight=torch.tensor(35))  # BinaryDiceLoss()
     elif opts.criterion == 'dice_loss':
         criterion = DiceLoss()
+    elif opts.criterion == 'soft_dice_loss':
+        criterion = SoftDiceLoss()
     elif opts.criterion == 'dice_loss_pancreas_only':
         criterion = CustomSoftDiceLoss(opts.output_nc, class_ids=[0, 2])
 
