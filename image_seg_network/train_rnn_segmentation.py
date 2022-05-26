@@ -86,8 +86,8 @@ def train(arguments):
         test_dataset = ds_class(ds_path, split='test', fold=fold,
                                 preload_data=train_opts.preloadData)
         train_loader = DataLoader(
-            dataset=train_dataset, num_workers=8, batch_size=train_opts.batchSize, shuffle=True)
-        test_loader = DataLoader(dataset=test_dataset, num_workers=8,
+            dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, num_workers=4,
                                  batch_size=train_opts.batchSize, shuffle=True)
 
         # initialize the early_stopping object
