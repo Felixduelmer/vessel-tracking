@@ -98,16 +98,14 @@ class unetConv2(nn.Module):
             for i in range(1, n + 1):
                 conv = nn.Sequential(nn.Conv2d(in_size, out_size, ks, s, p),
                                      nn.BatchNorm2d(out_size),
-                                     nn.ReLU(inplace=True),
-                                     nn.Dropout(0.2))
+                                     nn.ReLU(inplace=True))
                 setattr(self, 'conv%d' % i, conv)
                 in_size = out_size
 
         else:
             for i in range(1, n + 1):
                 conv = nn.Sequential(nn.Conv2d(in_size, out_size, ks, s, p),
-                                     nn.ReLU(inplace=True),
-                                     nn.Dropout(0.2))
+                                     nn.ReLU(inplace=True))
                 setattr(self, 'conv%d' % i, conv)
                 in_size = out_size
 
@@ -153,6 +151,29 @@ class unetUp2(nn.Module):
         super(unetUp2, self).__init__()
         if is_deconv:
             self.conv = unetConv2(in_size, out_size, is_batchnorm)
+            self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1)
+        else:
+            self.conv = unetConv2(in_size + out_size, out_size, is_batchnorm)
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear')
+
+        # initialise the blocks
+        for m in self.children():
+            if m.__class__.__name__.find('unetConv2') != -1:
+                continue
+            init_weights(m, init_type='kaiming')
+
+    def forward(self, inputs1, inputs2):
+        outputs2 = self.up(inputs2)
+        offset = outputs2.size()[2] - inputs1.size()[2]
+        padding = 2 * [offset // 2, offset // 2]
+        outputs1 = F.pad(inputs1, padding)
+        return self.conv(torch.cat([outputs1, outputs2], 1))
+
+class unetUp2Cat(nn.Module):
+    def __init__(self, in_size, out_size, is_deconv, is_batchnorm):
+        super(unetUp2Cat, self).__init__()
+        if is_deconv:
+            self.conv = unetConv2(in_size+out_size, out_size, is_batchnorm)
             self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1)
         else:
             self.conv = unetConv2(in_size + out_size, out_size, is_batchnorm)

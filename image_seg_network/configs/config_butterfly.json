@@ -5,11 +5,11 @@
         "save_epoch_freq": 10,
         "lr_policy": "step",
         "lr_decay_iters": 250,
-        "batchSize": 32,
+        "batchSize": 16,
         "preloadData": true,
         "seq_len": 20,
         "patience": 15,
-        "update_freq": 20
+        "update_freq": 4
     },
     "visualisation": {
         "display_port": 8097,
@@ -33,20 +33,20 @@
         "type": "seg",
         "continue_train": false,
         "which_epoch": -1,
-        "model_type": "butterflynet",
+        "model_type": "butterflynernndoubleencoder",
         "division_factor": 16,
         "input_nc": [0, 1],
         "lr_rate": 1e-4,
         "l2_reg_weight": 1e-6,
-        "feature_scale": 4,
+        "feature_scale": 8,
         "gpu_ids": [
             0
         ],
         "optim": "adam",
         "isTrain": true,
         "checkpoints_dir": "./checkpoints",
-        "experiment_name": "buttefly_net_test",
+        "experiment_name": "butterflynernndoubleencoder_test",
         "criterion": "soft_dice_loss",
-        "is_rnn": false
+        "is_rnn": true
     }
 }

@@ -9,7 +9,8 @@
         "preloadData": true,
         "seq_len": 20,
         "patience": 15,
-        "update_freq": 20
+        "update_freq": 20,
+        "multipleInput": false
     },
     "visualisation": {
         "display_port": 8097,

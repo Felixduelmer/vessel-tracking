@@ -1,7 +1,7 @@
 import math
 import torch
 import torch.nn as nn
-from .utils import unetConv2, unetUp2
+from .utils import unetConv2, unetUp2Cat
 import torch.nn.functional as F
 from models.networks_other import init_weights
 from models.modules.convgru import ConvGRUCell
@@ -10,10 +10,10 @@ from torch.autograd import Variable
 import numpy as np
 
 
-class ButterflyNet(nn.Module):
+class ButterflyNetRNNDoubleEncoder(nn.Module):
 
-    def __init__(self, feature_scale=16, n_classes=1, is_deconv=True, in_channels=1, is_batchnorm=True):
-        super(ButterflyNet, self).__init__()
+    def __init__(self, feature_scale=8, n_classes=1, is_deconv=True, in_channels=1, is_batchnorm=True):
+        super(ButterflyNetRNNDoubleEncoder, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels
         self.is_batchnorm = is_batchnorm
@@ -24,7 +24,7 @@ class ButterflyNet(nn.Module):
         self.filters = filters
 
         # downsampling bmode
-        self.conv1_bmode = unetConv2(self.in_channels, filters[0], self.is_batchnorm)
+        self.conv1_bmode = unetConv2(2, filters[0], self.is_batchnorm)
         self.maxpool1_bmode = nn.MaxPool2d(kernel_size=2)
 
         self.conv2_bmode = unetConv2(filters[0], filters[1], self.is_batchnorm)
@@ -39,7 +39,7 @@ class ButterflyNet(nn.Module):
         self.conv5_bmode = unetConv2(filters[3], filters[4], self.is_batchnorm)
 
         # downsampling doppler
-        self.conv1_doppler = unetConv2(self.in_channels, filters[0], self.is_batchnorm)
+        self.conv1_doppler = unetConv2(1, filters[0], self.is_batchnorm)
         self.maxpool1_doppler = nn.MaxPool2d(kernel_size=2)
 
         self.conv2_doppler = unetConv2(filters[0], filters[1], self.is_batchnorm)
@@ -56,7 +56,7 @@ class ButterflyNet(nn.Module):
         # conv gated recurrent units
         self.convGRU_bmode = ConvGRUCell(filters[4], filters[4], 3, False)
         self.convGRU_doppler = ConvGRUCell(filters[4], filters[4], 3, False)
-        self.center = nn.Linear((filters[4] + filters[4]) * 20 * 20, filters[4] * 20 * 20)
+        self.center = unetConv2((filters[4] + filters[4]), filters[4], self.is_batchnorm)
 
         # attention units
 
@@ -73,10 +73,10 @@ class ButterflyNet(nn.Module):
         self.attention1_bmode = GridAttentionBlock2D(filters[0], filters[1])
 
         # upsampling
-        self.up_concat4 = unetUp2(filters[4], filters[3], self.is_deconv, self.is_batchnorm)
-        self.up_concat3 = unetUp2(filters[3], filters[2], self.is_deconv, self.is_batchnorm)
-        self.up_concat2 = unetUp2(filters[2], filters[1], self.is_deconv, self.is_batchnorm)
-        self.up_concat1 = unetUp2(filters[1], filters[0], self.is_deconv, self.is_batchnorm)
+        self.up_concat4 = unetUp2Cat(filters[4], filters[3], self.is_deconv, self.is_batchnorm)
+        self.up_concat3 = unetUp2Cat(filters[3], filters[2], self.is_deconv, self.is_batchnorm)
+        self.up_concat2 = unetUp2Cat(filters[2], filters[1], self.is_deconv, self.is_batchnorm)
+        self.up_concat1 = unetUp2Cat(filters[1], filters[0], self.is_deconv, self.is_batchnorm)
 
         # final conv (without any concat)
         self.final = nn.Conv2d(filters[0], n_classes, 1)
@@ -91,7 +91,7 @@ class ButterflyNet(nn.Module):
     def forward(self, inputs, hidden):
         new_hidden = [None] * 2
         # bmode
-        conv1_bmode = self.conv1_bmode(inputs[:, [0], :, :])
+        conv1_bmode = self.conv1_bmode(inputs[:, [0, 1], :, :])
         maxpool1_bmode = self.maxpool1_bmode(conv1_bmode)
 
         conv2_bmode = self.conv2_bmode(maxpool1_bmode)
@@ -129,19 +129,19 @@ class ButterflyNet(nn.Module):
 
         attention4_doppler = self.attention4_doppler(conv4_doppler, center)[0]
         attention4_bmode = self.attention4_bmode(conv4_bmode, center)[0]
-        up4 = self.up_concat4(attention4_doppler, attention4_bmode, center)
+        up4 = self.up_concat4(torch.cat([attention4_doppler, attention4_bmode], 1), center)
 
         attention3_doppler = self.attention3_doppler(conv3_doppler, up4)[0]
         attention3_bmode = self.attention3_bmode(conv3_bmode, up4)[0]
-        up3 = self.up_concat3(attention3_doppler, attention3_bmode, up4)
+        up3 = self.up_concat3(torch.cat([attention3_doppler, attention3_bmode], 1), up4)
 
         attention2_doppler = self.attention2_doppler(conv2_doppler, up3)[0]
         attention2_bmode = self.attention2_bmode(conv2_bmode, up3)[0]
-        up2 = self.up_concat2(attention2_doppler, attention2_bmode, up3)
+        up2 = self.up_concat2(torch.cat([attention2_doppler, attention2_bmode], 1), up3)
 
         attention1_doppler = self.attention1_doppler(conv1_doppler, up2)[0]
         attention1_bmode = self.attention1_bmode(conv1_bmode, up2)[0]
-        up1 = self.up_concat1(attention1_doppler, attention1_bmode, up2)
+        up1 = self.up_concat1(torch.cat([attention1_doppler, attention1_bmode], 1), up2)
         final = self.final(up1)
 
         return final, new_hidden
@@ -152,7 +152,7 @@ class ButterflyNet(nn.Module):
 
         return log_p
 
-    def init_hidden(self, batch_size):
+    def init_hidden(self, batch_size, input_size):
         hidden_states = []
         for i in range(2):
             # number of hidden layers comes up first

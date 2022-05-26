@@ -110,39 +110,39 @@ class FeedForwardSegmentation(BaseModel):
                 with torch.no_grad():
                     self.prediction, self.states = self.net(
                         Variable(self.input[:, self.inChannels, :, :]), self.states)
-            self.prediction = self.net.apply_sigmoid(self.prediction)
-            # Apply a softmax and return a segmentation map
-            self.pred_seg = torch.round(self.prediction.data) * 255
+            # self.prediction = self.net.apply_sigmoid(self.prediction)
+            # Apply a sigmoid and return a segmentation map
+            self.pred_seg = torch.round(self.net.apply_sigmoid(self.prediction).data) * 255
 
-    def forward_state_aware(self, split, bptt_steps=1):
-        state = [i.detach() for i in self.states[-1][1]]
-        if split == 'train':
-            for item in state:
-                item.requires_grad = True
-            self.prediction, new_state = self.net(
-                Variable(self.input), state)
-            for state in new_state:
-                state.retain_grad()
-            self.outputs.append(self.prediction)
-            self.targets.append(self.target)
-
-            while len(self.outputs) > bptt_steps:
-                del self.outputs[0]
-                del self.targets[0]
-
-        elif split == 'test':
-            for item in state:
-                item.requires_grad = False
-            self.prediction, new_state = self.net(
-                Variable(self.input, requires_grad=False), state)
-            self.prediction = self.net.apply_sigmoid(self.prediction)
-            # Apply a softmax and return a segmentation map
-            self.pred_seg = torch.round(self.prediction.data) * 255
-        self.states.append((state, new_state))
-
-        while len(self.states) > bptt_steps:
-            # Delete stuff that is too old
-            del self.states[0]
+    # def forward_state_aware(self, split, bptt_steps=1):
+    #     state = [i.detach() for i in self.states[-1][1]]
+    #     if split == 'train':
+    #         for item in state:
+    #             item.requires_grad = True
+    #         self.prediction, new_state = self.net(
+    #             Variable(self.input), state)
+    #         for state in new_state:
+    #             state.retain_grad()
+    #         self.outputs.append(self.prediction)
+    #         self.targets.append(self.target)
+    #
+    #         while len(self.outputs) > bptt_steps:
+    #             del self.outputs[0]
+    #             del self.targets[0]
+    #
+    #     elif split == 'test':
+    #         for item in state:
+    #             item.requires_grad = False
+    #         self.prediction, new_state = self.net(
+    #             Variable(self.input, requires_grad=False), state)
+    #         # self.prediction = self.net.apply_sigmoid(self.prediction)
+    #         # Apply a softmax and return a segmentation map
+    #         self.pred_seg = torch.round(self.net.apply_sigmoid(self.prediction).data) * 255
+    #     self.states.append((state, new_state))
+    #
+    #     while len(self.states) > bptt_steps:
+    #         # Delete stuff that is too old
+    #         del self.states[0]
 
     def backward(self):
         if self.isRNN:
@@ -157,7 +157,10 @@ class FeedForwardSegmentation(BaseModel):
         self.scaler.step(self.optimizer_S)
         self.scaler.update()
         if self.isRNN:
-            self.states = [Variable(i.data) for i in self.states]
+            if isinstance(self.states[0], list):
+                self.states = [[Variable(i.data) for i in state] for state in self.states]
+            else:
+                self.states = [Variable(i.data) for i in self.states]
             self.outputs = []
             self.targets = []
 
@@ -208,13 +211,13 @@ class FeedForwardSegmentation(BaseModel):
         self.forward(split='test')
         self.loss_S = self.criterion(self.prediction, self.target)
 
-
     def validate_state_aware(self):
         self.net.eval()
         self.forward_state_aware(split='test')
         self.loss_S = self.criterion(self.prediction, self.target)
 
     def get_segmentation_stats(self):
+        self.prediction = self.net.apply_sigmoid(self.prediction.detach().data)
         self.seg_scores, self.dice_score = segmentation_stats(
             self.prediction, self.target)
         seg_stats = [('Overall_Acc', self.seg_scores['overall_acc']),
@@ -225,7 +228,7 @@ class FeedForwardSegmentation(BaseModel):
         return OrderedDict(seg_stats)
 
     def get_current_errors(self):
-        return OrderedDict([('Seg_Loss', self.loss_S.item())
+        return OrderedDict([('Seg_Loss', self.loss_S.detach().item())
                             ])
 
     def get_current_visuals(self, labels):

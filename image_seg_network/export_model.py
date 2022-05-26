@@ -32,8 +32,8 @@ def export(arguments):
 
     images = torch.zeros((1, 2, 320, 320)).cuda().float()
     model.init_hidden(images.size(0), images.size(3))
-    traced_script_module = torch.jit.trace(model.net, (images, model.states[-1][1]))
-    traced_script_module.save("traced_vesnet_model.pt")
+    traced_script_module = torch.jit.trace(model.net, (images, model.states), strict=False)
+    traced_script_module.save("traced_butterfly_model.pt")
 
 
 

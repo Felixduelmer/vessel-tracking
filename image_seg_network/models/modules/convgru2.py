@@ -111,7 +111,7 @@ class ConvGRU(nn.Module):
         -------
         upd_hidden : 5D hidden representation. (layer, batch, channels, height, width).
         '''
-        if not hidden:
+        if hidden is None:
             hidden = [None]*self.n_layers
 
         input_ = x

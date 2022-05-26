@@ -6,6 +6,8 @@ from tqdm import tqdm
 from polyaxon_client.tracking import Experiment, get_data_paths
 import os
 import shutil
+import wandb
+import gc
 
 from dataio.loader import get_dataset, get_dataset_path
 from dataio.transformation import get_dataset_transformation
@@ -34,7 +36,7 @@ def train(arguments):
     not_polyaxon = False
     try:
         data_paths = get_data_paths()
-        dataset = "/vessel_felix/ultrasound_patient_original.h5"
+        dataset = "/vessel_felix/" + os.path.basename(json_opts.data_path.us)
         training_data_path = data_paths['data1'] + dataset
         polyaxon_input_path = training_data_path
         output_path = os.environ['POLYAXON_RUN_OUTPUTS_PATH']
@@ -65,6 +67,7 @@ def train(arguments):
         visualizer = Visualiser(json_opts.visualisation, save_dir=save_dir)
     error_logger = ErrorLogger()
 
+    wandb.init(project=json_opts.model.experiment_name, entity="felixduelmer")
     for fold in range(7):
 
         scores = {}
@@ -83,8 +86,8 @@ def train(arguments):
         test_dataset = ds_class(ds_path, split='test', fold=fold,
                                 preload_data=train_opts.preloadData)
         train_loader = DataLoader(
-            dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)
-        test_loader = DataLoader(dataset=test_dataset, num_workers=0,
+            dataset=train_dataset, num_workers=8, batch_size=train_opts.batchSize, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, num_workers=8,
                                  batch_size=train_opts.batchSize, shuffle=True)
 
         # initialize the early_stopping object
@@ -108,11 +111,11 @@ def train(arguments):
                         model.optimize_parameters()
                         errors = model.get_current_errors()
                         error_logger.update(errors, split='train')
-                    elif ((i+1) % train_opts.update_freq) == 0:
+                    elif ((i + 1) % train_opts.update_freq) == 0:
                         model.optimize_parameters()
                         errors = model.get_current_errors()
                         error_logger.update(errors, split='train')
-                    elif (i+1) == train_opts.seq_len:
+                    elif (i + 1) == train_opts.seq_len:
                         model.optimize_parameters()
                         errors = model.get_current_errors()
                         error_logger.update(errors, split='train')
@@ -171,12 +174,13 @@ def train(arguments):
                         epoch, error_logger.get_errors(split), split_name=split + '_fold_' + str(fold))
                     visualizer.print_current_errors(
                         epoch, error_logger.get_errors(split), split_name=split + '_fold_' + str(fold))
-            else:
-                message = '(epoch: %d) ' % epoch
-                for k, v in error_logger.get_errors('test').items():
-                    if np.isscalar(v):
-                        message += '%s: %.3f ' % (k, v)
-                print(message)
+
+            message = '(epoch: %d) ' % epoch
+            for k, v in error_logger.get_errors('test').items():
+                if np.isscalar(v):
+                    message += '%s: %.3f ' % (k, v)
+                wandb.log({k + "_" + str(fold): v})
+            print(message)
 
             # early_stopping needs the validation loss to check if it has decresed,
             # and if it has, it will make a checkpoint of the current model
@@ -205,6 +209,10 @@ def train(arguments):
             if early_stopping.early_stop or epoch is train_opts.n_epochs - 1:
                 print("Stopping due to no improvement or max epochs has been reached")
                 break
+        del model
+        del early_stopping
+        del train_loader, train_dataset
+        del test_loader, test_dataset
 
 
 if __name__ == '__main__':

@@ -8,7 +8,8 @@
         "batchSize": 32,
         "preloadData": true,
         "seq_len": 20,
-        "patience": 15
+        "patience": 15,
+        "multipleInput": false
     },
     "visualisation": {
         "display_port": 8097,
