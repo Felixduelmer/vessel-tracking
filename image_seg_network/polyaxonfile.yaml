@@ -31,4 +31,4 @@ environment:
 
 
 run:
-  cmd: python -u train_rnn_segmentation.py  -c configs/config_unet_rnn.json
+  cmd: python -u train_rnn_segmentation.py  -c configs/config_butterflyduplexrnnsingle.json
