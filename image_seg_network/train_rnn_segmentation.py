@@ -68,7 +68,7 @@ def train(arguments):
     error_logger = ErrorLogger()
 
     wandb.init(project=json_opts.model.experiment_name, entity="felixduelmer")
-    for fold in range(7):
+    for fold in range(2, 7):
 
         scores = {}
 
@@ -86,8 +86,8 @@ def train(arguments):
         test_dataset = ds_class(ds_path, split='test', fold=fold,
                                 preload_data=train_opts.preloadData)
         train_loader = DataLoader(
-            dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=True)
-        test_loader = DataLoader(dataset=test_dataset, num_workers=4,
+            dataset=train_dataset, num_workers=0, batch_size=train_opts.batchSize, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, num_workers=0,
                                  batch_size=train_opts.batchSize, shuffle=True)
 
         # initialize the early_stopping object

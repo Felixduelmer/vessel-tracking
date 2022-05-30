@@ -8,6 +8,7 @@ from .ButterflyNetRNNDoubleEncoder import *
 from .UNet_RNN import *
 from .ButterflyNet_Duplex_RNN import *
 from .ButterflyNet_Duplex_RNN_single import *
+from .UNetBMode import *
 
 def get_network(name, in_channels=2, feature_scale=4,
                 nonlocal_mode='embedded_gaussian', attention_dsample=(2, 2, 2),
@@ -34,7 +35,8 @@ def get_network(name, in_channels=2, feature_scale=4,
         model = model(in_channels=in_channels, feature_scale=feature_scale, )
     elif name in ['butterflynetduplexrnnsingle']:
         model = model(in_channels=in_channels, feature_scale=feature_scale, )
-
+    elif name in ['unetbmode']:
+        model = model(in_channels=in_channels, feature_scale=feature_scale, )
     else:
         raise 'Model {} not available'.format(name)
 
@@ -52,6 +54,7 @@ def _get_model_instance(name):
         'butterflynernndoubleencoder': ButterflyNetRNNDoubleEncoder,
         'unetrnn': UNetRNN,
         'butterflynetduplexrnn': ButterflyNetDuplexRNN,
-        'butterflynetduplexrnnsingle': ButterflyNetDuplexRNNSingle
+        'butterflynetduplexrnnsingle': ButterflyNetDuplexRNNSingle,
+        'unetbmode': UNetBMode
 
     }[name]

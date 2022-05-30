@@ -84,10 +84,6 @@ def get_model(json_opts, polyaxon_output_path=None):
         # Return the model type
         from .feedforward_seg_model import FeedForwardSegmentation
         model = FeedForwardSegmentation()
-    elif model_type == 'classifier':
-        # Return the model type
-        from .feedforward_classifier import FeedForwardClassifier
-        model = FeedForwardClassifier()
 
     # Initialise the created model
     model.initialize(model_opts)

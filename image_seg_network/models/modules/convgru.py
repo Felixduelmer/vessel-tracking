@@ -5,7 +5,7 @@ from torch.autograd import Variable
 
 
 class ConvGRUCell(nn.Module):
-    def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias, dtype):
+    def __init__(self, input_size, input_dim, hidden_dim, kernel_size, bias=True, dtype=torch.cuda.FloatTensor):
         """
         Initialize the ConvLSTM cell
         :param input_size: (int, int)

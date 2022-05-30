@@ -46,11 +46,12 @@ For simplicity let's start with same amount of input dimensions as hidden dimens
 '''
 
 
-def ConvGru(input_size):
+def ConvGru(input_size, input_dim):
     return ConvGRUCell(
-        input_dim=input_size,
-        hidden_dim=input_size,
-        kernel_size=3,
+        input_size=(input_size, input_size),
+        input_dim=input_dim,
+        hidden_dim=input_dim,
+        kernel_size=(3, 3),
         bias=True,
     )
 
@@ -166,14 +167,14 @@ class VesNet(nn.Module):
         self.encoder4 = Encoder(self.filters[3])
 
         # skip connections with Conv GRU
-        self.convGru1 = ConvGru(input_size=self.filters[0])
-        self.convGru2 = ConvGru(input_size=self.filters[1])
+        self.convGru1 = ConvGru(input_size=320, input_dim=self.filters[0])
+        self.convGru2 = ConvGru(input_size=160, input_dim=self.filters[1])
         self.spatialChannelAttention3 = SpatialChannelAttentionModule(
             filters=self.filters[2:4])
-        self.convGru3 = ConvGru(input_size=self.filters[2])
+        self.convGru3 = ConvGru(input_size=80, input_dim=self.filters[2])
         self.spatialChannelAttention2 = SpatialChannelAttentionModule(
             filters=self.filters[1:3])
-        self.convGru4 = ConvGru(input_size=self.filters[3])
+        self.convGru4 = ConvGru(input_size=40, input_dim=self.filters[3])
         self.spatialChannelAttention1 = SpatialChannelAttentionModule(
             filters=self.filters[:2])
 
@@ -197,7 +198,7 @@ class VesNet(nn.Module):
 
     def forward(self, input, hidden):
 
-        new_hidden = [None]*4
+        new_hidden = [None] * 4
         if hidden is None:
             hidden = self.init_hidden(input.size(0), input.size(2))
         # encoding path
@@ -255,8 +256,10 @@ class VesNet(nn.Module):
         hidden_states = []
         for i, filter in enumerate(self.filters):
             # number of hidden layers comes up first
-            hidden_states.append(Variable(torch.zeros(batch_size, filter, np.int(input_size / (2 ** i)), np.int(input_size / (2 ** i)), requires_grad=True,
-                device=self.device)))
+            hidden_states.append(Variable(
+                torch.zeros(batch_size, filter, np.int(input_size / (2 ** i)), np.int(input_size / (2 ** i)),
+                            requires_grad=True,
+                            device=self.device)))
         return hidden_states
 
 

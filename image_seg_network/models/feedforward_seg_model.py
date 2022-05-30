@@ -46,11 +46,11 @@ class FeedForwardSegmentation(BaseModel):
             self.path_pre_trained_model = opts.path_pre_trained_model
             if self.path_pre_trained_model:
                 self.load_network_from_path(
-                    self.net, self.path_pre_trained_model, strict=False)
+                    self.net, self.scaler, self.path_pre_trained_model, strict=False)
                 self.which_epoch = int(0)
             else:
                 self.which_epoch = opts.which_epoch
-                self.load_network(self.net, 'S', self.which_epoch)
+                self.load_network(self.net, self.scaler, 'S', self.which_epoch)
 
         # training objective
         if self.isTrain:
@@ -261,7 +261,7 @@ class FeedForwardSegmentation(BaseModel):
         return fp / float(bsize), bp / float(bsize)
 
     def save(self, epoch_label):
-        self.save_network(self.net, 'S', epoch_label, self.gpu_ids)
+        self.save_network(self.net, self.scaler, 'S', epoch_label, self.gpu_ids)
 
     def save_fold(self, epoch_label, fold):
-        self.save_network(self.net, 'S_fold_' + str(fold), epoch_label, self.gpu_ids)
+        self.save_network(self.net, self.scaler, 'S_fold_' + str(fold), epoch_label, self.gpu_ids)
