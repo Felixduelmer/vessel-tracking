@@ -169,11 +169,37 @@ class unetUp2(nn.Module):
         outputs1 = F.pad(inputs1, padding)
         return self.conv(torch.cat([outputs1, outputs2], 1))
 
+
+class unetUp3(nn.Module):
+    def __init__(self, in_size, out_size, is_deconv, is_batchnorm):
+        super(unetUp3, self).__init__()
+        if is_deconv:
+            self.conv = unetConv2(in_size+out_size, out_size, is_batchnorm)
+            self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1)
+        else:
+            self.conv = unetConv2(in_size + out_size, out_size, is_batchnorm)
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear')
+
+        # initialise the blocks
+        for m in self.children():
+            if m.__class__.__name__.find('unetConv2') != -1:
+                continue
+            init_weights(m, init_type='kaiming')
+
+    def forward(self, inputs1, inputs2, inputs3):
+        outputs3 = self.up(inputs3)
+        offset = outputs3.size()[2] - inputs1.size()[2]
+        padding = 2 * [offset // 2, offset // 2]
+        outputs1 = F.pad(inputs1, padding)
+        outputs2 = F.pad(inputs2, padding)
+        return self.conv(torch.cat([outputs1, outputs2, outputs3], 1))
+
+
 class unetUp2Cat(nn.Module):
     def __init__(self, in_size, out_size, is_deconv, is_batchnorm):
         super(unetUp2Cat, self).__init__()
         if is_deconv:
-            self.conv = unetConv2(in_size+out_size, out_size, is_batchnorm)
+            self.conv = unetConv2(in_size + out_size, out_size, is_batchnorm)
             self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1)
         else:
             self.conv = unetConv2(in_size + out_size, out_size, is_batchnorm)

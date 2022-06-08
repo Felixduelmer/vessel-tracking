@@ -33,7 +33,7 @@ class UNetRNN(nn.Module):
         self.maxpool4 = nn.MaxPool2d(kernel_size=2)
 
         self.center = unetConv2(filters[3], filters[4], self.is_batchnorm)
-        self.convGRU = ConvGRU(input_size=filters[4], hidden_sizes=[64, 64, 128],
+        self.convGRU = ConvGRU(input_size=filters[4], hidden_sizes=[64, 64, filters[4]],
                                       kernel_sizes=[3, 3, 5], n_layers=3)
 
         # upsampling

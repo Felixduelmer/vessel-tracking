@@ -152,22 +152,22 @@ def main():
     #         label_tmp = fill_sequence(label_tmp)
     #         labels.append(label_tmp)
 
-    # labels = np.concatenate(labels)
-    # # labels = labels.reshape(((labels.shape[0] // seq_len), seq_len, *labels.shape[1:]))
-    #
-    # images = np.concatenate(images)
-    # # images = images.reshape(((images.shape[0] // seq_len), seq_len, *images.shape[1:]))
-    #
-    # target_dir = "/data1/volume1/data/felix_data/sequences/"
-    # names = ['label', 'bmode', 'doppler']
-    # arrays = [labels, images[:, :, [0], :, :], images[:, :, [1], :, :]]
-    #
-    # for i in range(3):
-    #     for seq_index, seq_elem in enumerate(arrays[i]):
-    #         for index, element in enumerate(seq_elem):
-    #             path = target_dir + 'sequence' + str(seq_index) + '/' + names[i] + '_' + str(index) + '.png'
-    #             os.makedirs(os.path.dirname(path), exist_ok=True)
-    #             cv2.imwrite(path, element.transpose((1, 2, 0)) * 255 if i == 0 else element.transpose((1, 2, 0)))
+    labels = np.concatenate(labels)
+    # labels = labels.reshape(((labels.shape[0] // seq_len), seq_len, *labels.shape[1:]))
+
+    images = np.concatenate(images)
+    # images = images.reshape(((images.shape[0] // seq_len), seq_len, *images.shape[1:]))
+
+    target_dir = "/data1/volume1/data/felix_data/sequences/"
+    names = ['label', 'bmode', 'doppler']
+    arrays = [labels, images[:, :, [0], :, :], images[:, :, [1], :, :]]
+
+    for i in range(3):
+        for seq_index, seq_elem in enumerate(arrays[i]):
+            for index, element in enumerate(seq_elem):
+                path = target_dir + 'sequence' + str(seq_index) + '/' + names[i] + '_' + str(index) + '.png'
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                cv2.imwrite(path, element.transpose((1, 2, 0)) * 255 if i == 0 else element.transpose((1, 2, 0)))
 
     # x_ids = list(range(len(images)))
     # y_ids = list(range(len(labels)))
@@ -178,16 +178,16 @@ def main():
     # x_valid, x_test, y_valid, y_test = train_test_split(
     #     x_rem, y_rem, test_size=0.5, shuffle=True)
 
-    with h5py.File('/data1/volume1/data/felix_data/h5_files/ultrasound_patient_original.h5', mode='w') as h5fw:
-        for idx in range(len(images)):
-            h5fw.create_dataset(f'x_{idx}', data=images[idx])
-            h5fw.create_dataset(f'y_{idx}', data=labels[idx])
-        # h5fw.create_dataset('x_test', data=images[x_test])
-        # h5fw.create_dataset('y_test', data=labels[y_test])
-        # h5fw.create_dataset('x_valid', data=images[x_valid])
-        # h5fw.create_dataset('y_valid', data=labels[y_valid])
-    print(np.concatenate(images).shape)
-    print(np.concatenate(labels).shape)
+    # with h5py.File('/data1/volume1/data/felix_data/h5_files/ultrasound_patient_original.h5', mode='w') as h5fw:
+    #     for idx in range(len(images)):
+    #         h5fw.create_dataset(f'x_{idx}', data=images[idx])
+    #         h5fw.create_dataset(f'y_{idx}', data=labels[idx])
+    #     # h5fw.create_dataset('x_test', data=images[x_test])
+    #     # h5fw.create_dataset('y_test', data=labels[y_test])
+    #     # h5fw.create_dataset('x_valid', data=images[x_valid])
+    #     # h5fw.create_dataset('y_valid', data=labels[y_valid])
+    # print(np.concatenate(images).shape)
+    # print(np.concatenate(labels).shape)
 
 
 if __name__ == "__main__":

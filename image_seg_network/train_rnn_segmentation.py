@@ -68,7 +68,7 @@ def train(arguments):
     error_logger = ErrorLogger()
 
     wandb.init(project=json_opts.model.experiment_name, entity="felixduelmer")
-    for fold in range(2, 7):
+    for fold in range(0, 2):
 
         scores = {}
 
