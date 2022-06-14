@@ -29,6 +29,15 @@ environment:
       requests: 1
       limits: 1
 
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                  - ithor
 
 run:
-  cmd: python -u train_rnn_segmentation.py  -c configs/config_dopus_net.json
+  cmd: python -u train_rnn_segmentation.py  -c configs/config_unet_rnn_big.json
