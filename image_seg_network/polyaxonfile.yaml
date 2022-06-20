@@ -38,6 +38,7 @@ environment:
                 operator: NotIn
                 values:
                   - ithor
+                  - correlia
 
 run:
-  cmd: python -u train_rnn_segmentation.py  -c configs/config_unet_rnn_big.json
+  cmd: python -u train_rnn_segmentation.py  -c configs/config_vesnet_big.json

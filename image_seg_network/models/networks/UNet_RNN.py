@@ -1,7 +1,7 @@
 import math
 import torch
 import torch.nn as nn
-from .utils import unetConv2, unetUp
+from .utils import unetConv2, unetUp2
 from models.modules.convgru2 import ConvGRU
 import torch.nn.functional as F
 from models.networks_other import init_weights
@@ -37,10 +37,10 @@ class UNetRNN(nn.Module):
                                       kernel_sizes=[3, 3, 5], n_layers=3)
 
         # upsampling
-        self.up_concat4 = unetUp(filters[4], filters[3], self.is_deconv)
-        self.up_concat3 = unetUp(filters[3], filters[2], self.is_deconv)
-        self.up_concat2 = unetUp(filters[2], filters[1], self.is_deconv)
-        self.up_concat1 = unetUp(filters[1], filters[0], self.is_deconv)
+        self.up_concat4 = unetUp2(filters[4], filters[3], self.is_deconv, self.is_batchnorm)
+        self.up_concat3 = unetUp2(filters[3], filters[2], self.is_deconv, self.is_batchnorm)
+        self.up_concat2 = unetUp2(filters[2], filters[1], self.is_deconv, self.is_batchnorm)
+        self.up_concat1 = unetUp2(filters[1], filters[0], self.is_deconv, self.is_batchnorm)
 
         # final conv (without any concat)
         self.final = nn.Conv2d(filters[0], n_classes, 1)
