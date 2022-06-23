@@ -7,7 +7,7 @@
         "lr_decay_iters": 150,
         "preloadData": true,
         "seq_len": 20,
-        "batchSize": 8,
+        "batchSize": 6,
         "bptt_step": 4,
         "patience": 15,
         "update_freq": 4
@@ -46,7 +46,7 @@
         "input_nc": [0, 1],
         "lr_rate": 1e-4,
         "l2_reg_weight": 1e-4,
-        "feature_scale": 3,
+        "feature_scale": 2.55,
         "gpu_ids": [
             0
         ],
